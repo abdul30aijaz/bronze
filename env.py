@@ -5,7 +5,7 @@
 import sys
 import json
 
-TABLE     = "metadata_control_table"
+TABLE     = "metadata_control_table_2"
 SCOPE     = "marspcmdifcinkv"
 POLICY_ID = "001256943B153715"
 CATALOG   = "cdap_mars_pc_mdif"
