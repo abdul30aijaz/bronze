@@ -1,0 +1,105 @@
+{
+  "region": "NORTH AMERICA",
+  "market": "US",
+  "domain": "DEMAND",
+  "source_name": "AMAZON",
+  "notify": {
+    "emails": [
+      "abdulaijaz109@gmail.com"
+    ]
+  },
+  "trigger": {
+    "type": ""
+  },
+  "ingestion_steps": {
+    "landing": {
+      "source_path": "abfss://marspcmdif@cdapshareddesacin.dfs.core.windows.net/STAGING/NORTH AMERICA/US/DEMAND/AMAZON",
+      "file_format": "excel",
+      "excel_options": {
+        "sheet_index": 0,
+        "header_row": 1,
+        "data_start_row": 2,
+        "data_end_row": 1048576,
+        "usecols": "A:N"
+      },
+      "pii_columns": []
+    },
+    "raw": {
+      "schema_config": "enforce",
+      "deduplication": true
+    },
+    "raw_trusted": {
+      "load_type": "scd_type1",
+      "primary_key": [
+        "asin",
+        "week_ending",
+        "fulfillment_center_id"
+      ],
+      "enable_expiration": false,
+      "validations": [
+        "row_count_validation",
+        "schema_validation",
+        "primary_key_validation"
+      ],
+      "schema_evolution": true
+    }
+  },
+  "schema": [
+    {
+      "column_name": "asin",
+      "data_type": "string"
+    },
+    {
+      "column_name": "week_ending",
+      "data_type": "date"
+    },
+    {
+      "column_name": "fulfillment_center_id",
+      "data_type": "string"
+    },
+    {
+      "column_name": "fulfillment_center_name",
+      "data_type": "string"
+    },
+    {
+      "column_name": "item_description",
+      "data_type": "string"
+    },
+    {
+      "column_name": "brand",
+      "data_type": "string"
+    },
+    {
+      "column_name": "category",
+      "data_type": "string"
+    },
+    {
+      "column_name": "list_price",
+      "data_type": "double"
+    },
+    {
+      "column_name": "units_ordered",
+      "data_type": "int"
+    },
+    {
+      "column_name": "ordered_revenue",
+      "data_type": "double"
+    },
+    {
+      "column_name": "glance_views",
+      "data_type": "int"
+    },
+    {
+      "column_name": "conversion_rate",
+      "data_type": "double"
+    },
+    {
+      "column_name": "subscribe_and_save_units",
+      "data_type": "int"
+    },
+    {
+      "column_name": "fba_inventory_units",
+      "data_type": "int"
+    }
+  ]
+}
