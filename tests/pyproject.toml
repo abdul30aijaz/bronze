@@ -8,3 +8,6 @@ exclude = '''
     .*_notebook\.py
 )
 '''
+
+[tool.pytest.ini_options]
+python_files = ["tests_*.py", "test_*.py"]
