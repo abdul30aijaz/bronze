@@ -57,7 +57,7 @@ def test_requirements_exists():
 def test_control_table_init_exists():
     """Verify the control table initialization script exists."""
     assert os.path.exists(
-        os.path.join(ROOT, "metadata", "control_table_init.py")
+        os.path.join(ROOT, "CICD", "control_table_init.py")
     )
 
 
