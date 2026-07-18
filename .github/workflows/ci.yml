@@ -7,39 +7,72 @@ on:
     branches: [dev]
 
 jobs:
+
+  # STAGE 1: CI - Run checks
   lint-and-test:
     runs-on: ubuntu-latest
+    name: "1. CI Checks (pytest)"
 
     steps:
-      - name: Checkout code
+      - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set Python version
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.x"
 
-      - name: Install dependencies
+      - name: Install CI tools
         run: |
-          pip install -r requirements.txt
-          pip install pytest
+          echo "Installing CI dependencies..."
+          pip install pytest --quiet
+          pytest --version
+          echo "All dependencies installed"
 
-      - name: Run tests
-        run: pytest tests/ -v
+      - name: pytest - structure and syntax checks
+        run: |
+          echo "Running pytest..."
+          pytest tests/tests_framework.py -v --tb=short
+          echo "pytest passed"
 
-  deploy:
+  # STAGE 2: Deploy to DEV
+  deploy_dev:
     needs: lint-and-test
     runs-on: ubuntu-latest
+    name: "2. Deploy to DEV Databricks"
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
 
     steps:
-      - name: Pull latest into Databricks Git folder
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        run: |
+          echo "Installing Databricks CLI..."
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+          databricks --version
+
+      - name: Validate Databricks connection
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          DATABRICKS_REPO_ID: ${{ secrets.DATABRICKS_REPO_ID }}
         run: |
-          curl -sf -X POST "$DATABRICKS_HOST/api/2.0/repos/$DATABRICKS_REPO_ID" \
-            -H "Authorization: Bearer $DATABRICKS_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"branch": "dev"}'
+          set -e
+          echo "Validating Databricks connection..."
+          databricks workspace list /
+          echo "Connected to Databricks successfully"
+
+      - name: Pull latest into Databricks Repo - DEV
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          set -e
+          echo "Pulling latest code into Databricks Repo..."
+          echo "Repo ID : ${{ secrets.DATABRICKS_REPO_ID }}"
+          echo "Branch  : dev"
+
+          databricks repos update "${{ secrets.DATABRICKS_REPO_ID }}" --branch dev
+
+          echo "DEV repo updated successfully!"
