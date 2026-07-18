@@ -3,8 +3,12 @@ name: Framework CI
 on:
   push:
     branches: [dev]
+    paths-ignore:
+      - 'metadata/**'
   pull_request:
     branches: [dev]
+    paths-ignore:
+      - 'metadata/**'
 
 jobs:
 
