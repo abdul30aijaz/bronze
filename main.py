@@ -37,7 +37,7 @@ from validation.validations import ValidationError
 LAYER_HANDLERS = {
     "landing":     process_landing,
     "raw":         process_raw,
-    "raw_trusted": process_raw_trusted,
+    "raw_trusted": process_raw_trusted
 }
 
 LAYER_ORDER = ["landing", "raw", "raw_trusted"]
@@ -51,20 +51,7 @@ def _layer_enabled(layer_config):
     Struct-derived configs pulled from the Unity Catalog control table always
     have every sub-field present as a key, even when the layer is meant to be
     skipped -- in that case every value is null, e.g.:
-        {"source_path": None, "notebook_path": None, "file_format": None, ...}
-
-    A plain truthy check (`if layer_config`) or key-presence check
-    (`"landing" in ingestion_steps`) is NOT sufficient here, since a non-empty
-    dict of all-None values is still truthy. This helper treats a layer as
-    enabled only if it's a non-empty dict containing at least one non-null
-    value.
-
-    Args:
-        layer_config: The config dict for a single layer (e.g. ingestion_steps.get("landing")).
-
-    Returns:
-        bool: True if the layer has real, usable configuration.
-    """
+        {"source_path": None, "notebook_path": None, "file_format": None, ...}"""
     if not layer_config or not isinstance(layer_config, dict):
         return False
     return any(v is not None for v in layer_config.values())
