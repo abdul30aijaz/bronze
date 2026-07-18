@@ -33,20 +33,13 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Databricks CLI
-        uses: databricks/setup-cli@main
-
-      - name: Prepare clean deploy folder
-        run: |
-          mkdir -p /tmp/deploy
-          rsync -a --exclude='.git' --exclude='.github' ./ /tmp/deploy/
-
-      - name: Import into Databricks workspace
+      - name: Pull latest into Databricks Git folder
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_REPO_ID: ${{ secrets.DATABRICKS_REPO_ID }}
         run: |
-          databricks workspace import-dir /tmp/deploy /Workspace/Shared/bronze --overwrite
+          curl -sf -X POST "$DATABRICKS_HOST/api/2.0/repos/$DATABRICKS_REPO_ID" \
+            -H "Authorization: Bearer $DATABRICKS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"branch": "dev"}'
