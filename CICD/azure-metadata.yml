@@ -1,0 +1,426 @@
+trigger: none
+
+parameters:
+  - name: JOB_NAMES
+    displayName: "Job Names (comma-separated)"
+    type: string
+    default: ""
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  - group: mars_petcare_mdif_ci_secrets
+  - ${{ if eq(variables['Build.SourceBranchName'], 'main') }}:
+      - group: mars_petcare_mdif_prod_vars
+  - ${{ if ne(variables['Build.SourceBranchName'], 'main') }}:
+      - group: mars_petcare_mdif_dev_vars
+
+stages:
+
+# STAGE 1: Validate JOB_NAMES
+
+- stage: Validate
+  displayName: "1. Validate JOB_NAMES"
+  jobs:
+    - job: ValidateParams
+      displayName: "Check all JOB_NAMES exist in metadata/configs/"
+      steps:
+        - checkout: self
+
+        - script: |
+            echo "BRANCH    : $(Build.SourceBranchName)"
+            echo "JOB_NAMES : ${{ parameters.JOB_NAMES }}"
+
+            if [ -z "${{ parameters.JOB_NAMES }}" ]; then
+              echo "ERROR: JOB_NAMES parameter is empty. Provide at least one job name."
+              exit 1
+            fi
+
+            IFS=',' read -ra JOBS <<< "${{ parameters.JOB_NAMES }}"
+
+            if [ ${#JOBS[@]} -gt 10 ]; then
+              echo "ERROR: Maximum 10 jobs allowed. Got ${#JOBS[@]}"
+              exit 1
+            fi
+
+            INVALID=()
+            for JOB_NAME in "${JOBS[@]}"; do
+              JOB_NAME=$(echo "$JOB_NAME" | xargs)
+              if [ ! -d "metadata/configs/$JOB_NAME" ]; then
+                echo "ERROR: metadata/configs/$JOB_NAME not found"
+                INVALID+=("$JOB_NAME")
+              else
+                echo "Valid - $JOB_NAME | $(ls metadata/configs/$JOB_NAME/ | wc -l) JSON file(s) found"
+              fi
+            done
+
+            if [ ${#INVALID[@]} -gt 0 ]; then
+              echo "Invalid job names: ${INVALID[*]}"
+              echo "Available job names:"
+              ls metadata/configs/
+              exit 1
+            fi
+
+            echo "All ${#JOBS[@]} job(s) validated successfully"
+          displayName: "Validate JOB_NAMES"
+
+# STAGE 2: Deploy to DEV
+
+- stage: Deploy_DEV
+  displayName: "2. Deploy to DEV"
+  dependsOn: Validate
+  condition: |
+    and(
+      succeeded(),
+      eq(variables['Build.SourceBranchName'], 'dev')
+    )
+  jobs:
+    - deployment: SyncAndTriggerDEV
+      displayName: "Sync and trigger Databricks (DEV)"
+      environment: mdif-development
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+
+              - checkout: self
+
+              - script: |
+                  curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+                  sudo apt-get update -qq && sudo apt-get install -y jq
+                  echo "Databricks CLI $(databricks version) ready"
+                displayName: "Install Databricks CLI"
+                env:
+                  DATABRICKS_HOST:      $(workspace-url)
+                  ARM_CLIENT_ID:        $(team-sp-client-id)
+                  ARM_CLIENT_SECRET:    $(team-sp-client-secret)
+                  ARM_TENANT_ID:        $(tenant-id)
+                  DATABRICKS_AUTH_TYPE: azure-client-secret
+
+              - script: |
+                  IFS=',' read -ra JOBS <<< "${{ parameters.JOB_NAMES }}"
+                  for JOB_NAME in "${JOBS[@]}"; do
+                    JOB_NAME=$(echo "$JOB_NAME" | xargs)
+                    databricks fs mkdirs dbfs:/mdif/metadata/configs/$JOB_NAME
+                    for f in metadata/configs/$JOB_NAME/*.json; do
+                      databricks fs cp "$f" "dbfs:/mdif/metadata/configs/$JOB_NAME/$(basename $f)" --overwrite
+                    done
+                    echo "Uploaded $(ls metadata/configs/$JOB_NAME/*.json | wc -l) JSON file(s) for $JOB_NAME"
+                  done
+                displayName: "Upload metadata JSONs to DBFS (DEV)"
+                env:
+                  DATABRICKS_HOST:      $(workspace-url)
+                  ARM_CLIENT_ID:        $(team-sp-client-id)
+                  ARM_CLIENT_SECRET:    $(team-sp-client-secret)
+                  ARM_TENANT_ID:        $(tenant-id)
+                  DATABRICKS_AUTH_TYPE: azure-client-secret
+
+              - script: |
+                  JOB_ID=$(databricks jobs list --output json | jq -r \
+                    '.[] | select(.settings.name=="MDIF_JOBS_DEPLOYMENT") | .job_id')
+
+                  if [ -z "$JOB_ID" ]; then
+                    echo "ERROR: MDIF_JOBS_DEPLOYMENT not found in DEV"
+                    exit 1
+                  fi
+
+                  echo "Found MDIF_JOBS_DEPLOYMENT | job_id=$JOB_ID"
+
+                  JOB_NAMES_STR="${{ parameters.JOB_NAMES }}"
+                  echo "JOB_NAMES_STR: $JOB_NAMES_STR"
+
+                  JOB_NAMES_JSON=$(echo "$JOB_NAMES_STR" | tr ',' '\n' | \
+                    jq -Rsc '[split("\n")[] | select(length > 0) | ltrimstr(" ") | rtrimstr(" ")]')
+
+                  jq -n \
+                    --argjson job_id "$JOB_ID" \
+                    --arg job_names "$JOB_NAMES_JSON" \
+                    '{job_id: $job_id, job_parameters: {JOB_NAMES: $job_names}}' \
+                    > /tmp/run_payload.json
+
+                  echo "Payload:"
+                  cat /tmp/run_payload.json
+
+                  echo "Triggering MDIF_JOBS_DEPLOYMENT..."
+                  RUN_ID=$(databricks jobs run-now \
+                    --json @/tmp/run_payload.json \
+                    -o json | jq -r '.run_id')
+
+                  if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+                    echo "ERROR: Failed to trigger MDIF_JOBS_DEPLOYMENT"
+                    exit 1
+                  fi
+
+                  echo "Triggered | Job=$JOB_ID | Run=$RUN_ID"
+
+                  while true; do
+                    STATE=$(databricks jobs get-run "$RUN_ID" -o json | jq -r '.state.life_cycle_state')
+                    echo "$(date '+%H:%M:%S') | $STATE"
+                    if [[ "$STATE" == "TERMINATED" || "$STATE" == "SKIPPED" || "$STATE" == "INTERNAL_ERROR" ]]; then
+                      break
+                    fi
+                    sleep 15
+                  done
+
+                  FINAL=$(databricks jobs get-run "$RUN_ID" -o json)
+                  RESULT=$(echo "$FINAL" | jq -r '.state.result_state')
+
+                  echo "$FINAL" | jq -r '.tasks[]? | "  \(.task_key): \(.state.result_state // "unknown")"'
+                  echo "BRANCH    : $(Build.SourceBranchName)"
+                  echo "JOB_NAMES : $JOB_NAMES_STR"
+                  echo "Result    : $RESULT"
+
+                  if [[ "$RESULT" != "SUCCESS" ]]; then
+                    echo "$FINAL" | jq -r '.tasks[]? | select(.state.result_state != "SUCCESS") | "  FAILED \(.task_key): \(.state.state_message // "no message")"'
+                    exit 1
+                  fi
+
+                  echo "DEV deployment complete"
+                displayName: "Trigger and poll MDIF_JOBS_DEPLOYMENT (DEV)"
+                env:
+                  DATABRICKS_HOST:      $(workspace-url)
+                  ARM_CLIENT_ID:        $(team-sp-client-id)
+                  ARM_CLIENT_SECRET:    $(team-sp-client-secret)
+                  ARM_TENANT_ID:        $(tenant-id)
+                  DATABRICKS_AUTH_TYPE: azure-client-secret
+
+# STAGE 3: Deploy to PRE-PROD (Approval Required)
+
+- stage: Deploy_PREPROD
+  displayName: "3. Deploy to PRE-PROD (Approval Required)"
+  dependsOn: Validate
+  condition: |
+    and(
+      succeeded(),
+      eq(variables['Build.SourceBranchName'], 'pre-prod')
+    )
+  jobs:
+    - deployment: SyncAndTriggerPREPROD
+      displayName: "Sync and trigger Databricks (PRE-PROD)"
+      environment: mdif-pre-production
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+
+              - checkout: self
+
+              - script: |
+                  curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+                  sudo apt-get update -qq && sudo apt-get install -y jq
+                  echo "Databricks CLI $(databricks version) ready"
+                displayName: "Install Databricks CLI"
+                env:
+                  DATABRICKS_HOST:      $(workspace-url)
+                  ARM_CLIENT_ID:        $(team-sp-client-id)
+                  ARM_CLIENT_SECRET:    $(team-sp-client-secret)
+                  ARM_TENANT_ID:        $(tenant-id)
+                  DATABRICKS_AUTH_TYPE: azure-client-secret
+
+              - script: |
+                  IFS=',' read -ra JOBS <<< "${{ parameters.JOB_NAMES }}"
+                  for JOB_NAME in "${JOBS[@]}"; do
+                    JOB_NAME=$(echo "$JOB_NAME" | xargs)
+                    databricks fs mkdirs dbfs:/mdif/metadata/configs/$JOB_NAME
+                    for f in metadata/configs/$JOB_NAME/*.json; do
+                      databricks fs cp "$f" "dbfs:/mdif/metadata/configs/$JOB_NAME/$(basename $f)" --overwrite
+                    done
+                    echo "Uploaded $(ls metadata/configs/$JOB_NAME/*.json | wc -l) JSON file(s) for $JOB_NAME"
+                  done
+                displayName: "Upload metadata JSONs to DBFS (PRE-PROD)"
+                env:
+                  DATABRICKS_HOST:      $(workspace-url)
+                  ARM_CLIENT_ID:        $(team-sp-client-id)
+                  ARM_CLIENT_SECRET:    $(team-sp-client-secret)
+                  ARM_TENANT_ID:        $(tenant-id)
+                  DATABRICKS_AUTH_TYPE: azure-client-secret
+
+              - script: |
+                  JOB_ID=$(databricks jobs list --output json | jq -r \
+                    '.[] | select(.settings.name=="MDIF_JOBS_DEPLOYMENT") | .job_id')
+
+                  if [ -z "$JOB_ID" ]; then
+                    echo "ERROR: MDIF_JOBS_DEPLOYMENT not found in PRE-PROD"
+                    exit 1
+                  fi
+
+                  echo "Found MDIF_JOBS_DEPLOYMENT | job_id=$JOB_ID"
+
+                  JOB_NAMES_STR="${{ parameters.JOB_NAMES }}"
+                  echo "JOB_NAMES_STR: $JOB_NAMES_STR"
+
+                  JOB_NAMES_JSON=$(echo "$JOB_NAMES_STR" | tr ',' '\n' | \
+                    jq -Rsc '[split("\n")[] | select(length > 0) | ltrimstr(" ") | rtrimstr(" ")]')
+
+                  jq -n \
+                    --argjson job_id "$JOB_ID" \
+                    --arg job_names "$JOB_NAMES_JSON" \
+                    '{job_id: $job_id, job_parameters: {JOB_NAMES: $job_names}}' \
+                    > /tmp/run_payload.json
+
+                  echo "Payload:"
+                  cat /tmp/run_payload.json
+
+                  echo "Triggering MDIF_JOBS_DEPLOYMENT..."
+                  RUN_ID=$(databricks jobs run-now \
+                    --json @/tmp/run_payload.json \
+                    -o json | jq -r '.run_id')
+
+                  if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+                    echo "ERROR: Failed to trigger MDIF_JOBS_DEPLOYMENT"
+                    exit 1
+                  fi
+
+                  echo "Triggered | Job=$JOB_ID | Run=$RUN_ID"
+
+                  while true; do
+                    STATE=$(databricks jobs get-run "$RUN_ID" -o json | jq -r '.state.life_cycle_state')
+                    echo "$(date '+%H:%M:%S') | $STATE"
+                    if [[ "$STATE" == "TERMINATED" || "$STATE" == "SKIPPED" || "$STATE" == "INTERNAL_ERROR" ]]; then
+                      break
+                    fi
+                    sleep 15
+                  done
+
+                  FINAL=$(databricks jobs get-run "$RUN_ID" -o json)
+                  RESULT=$(echo "$FINAL" | jq -r '.state.result_state')
+
+                  echo "$FINAL" | jq -r '.tasks[]? | "  \(.task_key): \(.state.result_state // "unknown")"'
+                  echo "BRANCH    : $(Build.SourceBranchName)"
+                  echo "JOB_NAMES : $JOB_NAMES_STR"
+                  echo "Result    : $RESULT"
+
+                  if [[ "$RESULT" != "SUCCESS" ]]; then
+                    echo "$FINAL" | jq -r '.tasks[]? | select(.state.result_state != "SUCCESS") | "  FAILED \(.task_key): \(.state.state_message // "no message")"'
+                    exit 1
+                  fi
+
+                  echo "PRE-PROD deployment complete"
+                displayName: "Trigger and poll MDIF_JOBS_DEPLOYMENT (PRE-PROD)"
+                env:
+                  DATABRICKS_HOST:      $(workspace-url)
+                  ARM_CLIENT_ID:        $(team-sp-client-id)
+                  ARM_CLIENT_SECRET:    $(team-sp-client-secret)
+                  ARM_TENANT_ID:        $(tenant-id)
+                  DATABRICKS_AUTH_TYPE: azure-client-secret
+
+# STAGE 4: Deploy to PROD (Approval Required)
+
+- stage: Deploy_PROD
+  displayName: "4. Deploy to PROD (Approval Required)"
+  dependsOn: Validate
+  condition: |
+    and(
+      succeeded(),
+      eq(variables['Build.SourceBranchName'], 'main')
+    )
+  jobs:
+    - deployment: SyncAndTriggerPROD
+      displayName: "Sync and trigger Databricks (PROD)"
+      environment: mdif-production
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+
+              - checkout: self
+
+              - script: |
+                  curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+                  sudo apt-get update -qq && sudo apt-get install -y jq
+                  echo "Databricks CLI $(databricks version) ready"
+                displayName: "Install Databricks CLI"
+                env:
+                  DATABRICKS_HOST:      $(workspace-url)
+                  ARM_CLIENT_ID:        $(team-sp-client-id)
+                  ARM_CLIENT_SECRET:    $(team-sp-client-secret)
+                  ARM_TENANT_ID:        $(tenant-id)
+                  DATABRICKS_AUTH_TYPE: azure-client-secret
+
+              - script: |
+                  IFS=',' read -ra JOBS <<< "${{ parameters.JOB_NAMES }}"
+                  for JOB_NAME in "${JOBS[@]}"; do
+                    JOB_NAME=$(echo "$JOB_NAME" | xargs)
+                    databricks fs mkdirs dbfs:/mdif/metadata/configs/$JOB_NAME
+                    for f in metadata/configs/$JOB_NAME/*.json; do
+                      databricks fs cp "$f" "dbfs:/mdif/metadata/configs/$JOB_NAME/$(basename $f)" --overwrite
+                    done
+                    echo "Uploaded $(ls metadata/configs/$JOB_NAME/*.json | wc -l) JSON file(s) for $JOB_NAME"
+                  done
+                displayName: "Upload metadata JSONs to DBFS (PROD)"
+                env:
+                  DATABRICKS_HOST:      $(workspace-url)
+                  ARM_CLIENT_ID:        $(team-sp-client-id)
+                  ARM_CLIENT_SECRET:    $(team-sp-client-secret)
+                  ARM_TENANT_ID:        $(tenant-id)
+                  DATABRICKS_AUTH_TYPE: azure-client-secret
+
+              - script: |
+                  JOB_ID=$(databricks jobs list --output json | jq -r \
+                    '.[] | select(.settings.name=="MDIF_JOBS_DEPLOYMENT") | .job_id')
+
+                  if [ -z "$JOB_ID" ]; then
+                    echo "ERROR: MDIF_JOBS_DEPLOYMENT not found in PROD"
+                    exit 1
+                  fi
+
+                  echo "Found MDIF_JOBS_DEPLOYMENT | job_id=$JOB_ID"
+
+                  JOB_NAMES_STR="${{ parameters.JOB_NAMES }}"
+                  echo "JOB_NAMES_STR: $JOB_NAMES_STR"
+
+                  JOB_NAMES_JSON=$(echo "$JOB_NAMES_STR" | tr ',' '\n' | \
+                    jq -Rsc '[split("\n")[] | select(length > 0) | ltrimstr(" ") | rtrimstr(" ")]')
+
+                  jq -n \
+                    --argjson job_id "$JOB_ID" \
+                    --arg job_names "$JOB_NAMES_JSON" \
+                    '{job_id: $job_id, job_parameters: {JOB_NAMES: $job_names}}' \
+                    > /tmp/run_payload.json
+
+                  echo "Payload:"
+                  cat /tmp/run_payload.json
+
+                  echo "Triggering MDIF_JOBS_DEPLOYMENT..."
+                  RUN_ID=$(databricks jobs run-now \
+                    --json @/tmp/run_payload.json \
+                    -o json | jq -r '.run_id')
+
+                  if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+                    echo "ERROR: Failed to trigger MDIF_JOBS_DEPLOYMENT"
+                    exit 1
+                  fi
+
+                  echo "Triggered | Job=$JOB_ID | Run=$RUN_ID"
+
+                  while true; do
+                    STATE=$(databricks jobs get-run "$RUN_ID" -o json | jq -r '.state.life_cycle_state')
+                    echo "$(date '+%H:%M:%S') | $STATE"
+                    if [[ "$STATE" == "TERMINATED" || "$STATE" == "SKIPPED" || "$STATE" == "INTERNAL_ERROR" ]]; then
+                      break
+                    fi
+                    sleep 15
+                  done
+
+                  FINAL=$(databricks jobs get-run "$RUN_ID" -o json)
+                  RESULT=$(echo "$FINAL" | jq -r '.state.result_state')
+
+                  echo "$FINAL" | jq -r '.tasks[]? | "  \(.task_key): \(.state.result_state // "unknown")"'
+                  echo "BRANCH    : $(Build.SourceBranchName)"
+                  echo "JOB_NAMES : $JOB_NAMES_STR"
+                  echo "Result    : $RESULT"
+
+                  if [[ "$RESULT" != "SUCCESS" ]]; then
+                    echo "$FINAL" | jq -r '.tasks[]? | select(.state.result_state != "SUCCESS") | "  FAILED \(.task_key): \(.state.state_message // "no message")"'
+                    exit 1
+                  fi
+
+                  echo "PROD deployment complete"
+                displayName: "Trigger and poll MDIF_JOBS_DEPLOYMENT (PROD)"
+                env:
+                  DATABRICKS_HOST:      $(workspace-url)
+                  ARM_CLIENT_ID:        $(team-sp-client-id)
+                  ARM_CLIENT_SECRET:    $(team-sp-client-secret)
+                  ARM_TENANT_ID:        $(tenant-id)
+                  DATABRICKS_AUTH_TYPE: azure-client-secret
