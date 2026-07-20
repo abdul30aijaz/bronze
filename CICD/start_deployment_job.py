@@ -1,10 +1,10 @@
 # Databricks notebook source
 # DBTITLE 1, Magic Command
-# MAGIC %run /Workspace/Shared/Mars_AZURE_Pet_Care_MDIF/bronze/env
+# MAGIC %run /Workspace/Shared/bronze/env
 
 # COMMAND ----------
-# DBTITLE 1, Check Metadata Directory
 
+# DBTITLE 1, Check Metadata Directory
 def check_metadata_dir(job_name: str) -> list:
     """
     Confirm the metadata directory exists and contains JSON files for one job.
@@ -28,8 +28,8 @@ def check_metadata_dir(job_name: str) -> list:
     return table_names
 
 # COMMAND ----------
-# DBTITLE 1, Run Check
 
+# DBTITLE 1, Run Check
 def run() -> None:
     require_job_names()
 
@@ -51,6 +51,6 @@ def run() -> None:
     print(f"{len(JOB_NAMES)} job(s) ")
 
 # COMMAND ----------
-# DBTITLE 1, Execute
 
+# DBTITLE 1, Execute
 run()

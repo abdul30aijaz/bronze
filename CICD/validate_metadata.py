@@ -3,20 +3,21 @@
 """Metadata validation framework for MDIF ingestion configs."""
 
 # COMMAND ----------
+
 # DBTITLE 1, Magic Command
-# MAGIC %run /Workspace/Shared/Mars_AZURE_Pet_Care_MDIF/bronze/env
+# MAGIC %run /Workspace/Shared/bronze/env
 
 # COMMAND ----------
-# DBTITLE 1, Imports
 
+# DBTITLE 1, Imports
 import json
 from pyspark.sql import SparkSession
 from utils.metadata_utils import read_json_files
 
 
 # COMMAND ----------
-# DBTITLE 1, Constants — Validation Rules
 
+# DBTITLE 1, Constants — Validation Rules
 # Required top-level metadata fields
 REQUIRED_FIELDS = ["source_name", "region", "market", "domain", "ingestion_steps"]
 
@@ -33,16 +34,16 @@ VALID_TRIGGER_TYPES = {"schedule", "file_arrival"}
 
 
 # COMMAND ----------
-# DBTITLE 1, Helper — Detect API Landing
 
+# DBTITLE 1, Helper — Detect API Landing
 def _is_api_landing(landing_cfg: dict) -> bool:
     """Identify API-based ingestion (presence of 'parameters')."""
     return "parameters" in landing_cfg
 
 
 # COMMAND ----------
-# DBTITLE 1, Validator — Top-Level Fields
 
+# DBTITLE 1, Validator — Top-Level Fields
 def _validate_top_level(data: dict, errors: list) -> None:
     """Validate required metadata fields at root level."""
     for field in REQUIRED_FIELDS:
@@ -56,8 +57,8 @@ def _validate_top_level(data: dict, errors: list) -> None:
 
 
 # COMMAND ----------
-# DBTITLE 1, Validator — Landing Layer
 
+# DBTITLE 1, Validator — Landing Layer
 def _validate_landing(landing_cfg: dict, errors: list) -> None:
     """Validate landing configuration (file or API ingestion)."""
 
@@ -99,9 +100,10 @@ def _validate_landing(landing_cfg: dict, errors: list) -> None:
             errors.append("'pii_columns' must be a list")
         elif len(pii_columns) != len(set(pii_columns)):
             errors.append("'pii_columns' contains duplicates")
-# COMMAND ----------
-# DBTITLE 1, Validator — Raw Layer
 
+# COMMAND ----------
+
+# DBTITLE 1, Validator — Raw Layer
 def _validate_raw(raw_cfg: dict, errors: list) -> None:
     """Validate raw ingestion layer configuration."""
 
@@ -115,8 +117,8 @@ def _validate_raw(raw_cfg: dict, errors: list) -> None:
 
 
 # COMMAND ----------
-# DBTITLE 1, Validator — Raw Trusted Layer
 
+# DBTITLE 1, Validator — Raw Trusted Layer
 def _validate_raw_trusted(rt_cfg: dict, errors: list) -> None:
     """Validate raw_trusted ingestion layer configuration."""
 
@@ -130,8 +132,8 @@ def _validate_raw_trusted(rt_cfg: dict, errors: list) -> None:
 
 
 # COMMAND ----------
-# DBTITLE 1, Validator — Notification Config
 
+# DBTITLE 1, Validator — Notification Config
 def _validate_notify(notify_cfg: dict, errors: list) -> None:
     """Validate notification email configuration."""
 
@@ -152,8 +154,8 @@ def _validate_notify(notify_cfg: dict, errors: list) -> None:
 
 
 # COMMAND ----------
-# DBTITLE 1, Validator — Trigger Config
 
+# DBTITLE 1, Validator — Trigger Config
 def _validate_trigger(trigger_cfg: dict, errors: list) -> None:
     """Validate ingestion trigger configuration."""
 
@@ -176,9 +178,10 @@ def _validate_trigger(trigger_cfg: dict, errors: list) -> None:
             errors.append("'trigger.cron' required for schedule trigger")
         if not trigger_cfg.get("timezone"):
             errors.append("'trigger.timezone' required for schedule trigger")
-# COMMAND ----------
-# DBTITLE 1, Validator — Schema Entries
 
+# COMMAND ----------
+
+# DBTITLE 1, Validator — Schema Entries
 def _validate_schema(data: dict, errors: list) -> None:
     """Validate schema definition consistency."""
 
@@ -188,8 +191,8 @@ def _validate_schema(data: dict, errors: list) -> None:
 
 
 # COMMAND ----------
-# DBTITLE 1, Entry Point — Validate Single Metadata Entry
 
+# DBTITLE 1, Entry Point — Validate Single Metadata Entry
 def validate_entry(job_name: str, table_name: str, data: dict) -> list:
     """Run full validation suite for a single metadata entry."""
 
@@ -226,8 +229,8 @@ def validate_entry(job_name: str, table_name: str, data: dict) -> list:
 
 
 # COMMAND ----------
-# DBTITLE 1, Main — Run Validation Pipeline
 
+# DBTITLE 1, Main — Run Validation Pipeline
 def run() -> None:
     """
     Execute metadata validation for all configs in the job.
@@ -282,6 +285,6 @@ def run() -> None:
 
 
 # COMMAND ----------
-# DBTITLE 1, Execute
 
+# DBTITLE 1, Execute
 run()

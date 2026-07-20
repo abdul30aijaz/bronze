@@ -3,12 +3,13 @@
 """Metadata-driven control table sync for MDIF ingestion framework."""
 
 # COMMAND ----------
+
 # DBTITLE 1, Magic Command
-# MAGIC %run /Workspace/Shared/Mars_AZURE_Pet_Care_MDIF/bronze/env
+# MAGIC %run /Workspace/Shared/bronze/env
 
 # COMMAND ----------
-# DBTITLE 1, Imports
 
+# DBTITLE 1, Imports
 import json
 from datetime import datetime
 
@@ -26,8 +27,8 @@ from pyspark.sql.types import (
 from utils.metadata_utils import read_json_files
 
 # COMMAND ----------
-# DBTITLE 1, Ensure Control Table Exists
 
+# DBTITLE 1, Ensure Control Table Exists
 def ensure_table(spark: SparkSession) -> None:
     """
     Create schema and control table if they do not exist.
@@ -98,8 +99,8 @@ def ensure_table(spark: SparkSession) -> None:
 
 
 # COMMAND ----------
-# DBTITLE 1, Utility — Serialize Values
 
+# DBTITLE 1, Utility — Serialize Values
 def _serialize(value) -> str | None:
     """
     Serialize non-string values to JSON.
@@ -116,8 +117,8 @@ def _serialize(value) -> str | None:
 
 
 # COMMAND ----------
-# DBTITLE 1, Flatten Metadata Row
 
+# DBTITLE 1, Flatten Metadata Row
 def flatten_to_row(job_name: str, table_name: str, data: dict, sync_timestamp) -> dict:
     """
     Convert metadata JSON into flat row structure.
@@ -214,8 +215,8 @@ def flatten_to_row(job_name: str, table_name: str, data: dict, sync_timestamp) -
 
 
 # COMMAND ----------
-# DBTITLE 1, Schema Definition
 
+# DBTITLE 1, Schema Definition
 INCOMING_SCHEMA = StructType([
     StructField("job_name",    StringType(), False),
     StructField("table_name",  StringType(), False),
@@ -263,8 +264,8 @@ INCOMING_SCHEMA = StructType([
 
 
 # COMMAND ----------
-# DBTITLE 1, Align Schema Helper
 
+# DBTITLE 1, Align Schema Helper
 def _cast_field(field_path: str, field):
     """
     Cast nested schema fields to match target schema.
@@ -316,8 +317,8 @@ def align_incoming_to_target(incoming, spark: SparkSession):
 
 
 # COMMAND ----------
-# DBTITLE 1, Main Execution
 
+# DBTITLE 1, Main Execution
 def run() -> None:
     """
     Sync metadata into Delta control table.
@@ -339,7 +340,7 @@ def run() -> None:
     all_rows = []
 
     for job_name in JOB_NAMES:
-        metadata_dir = f"dbfs:/mdif/metadata/configs/{job_name}"
+        metadata_dir = f"{METADATA_BASE_DIR}/{job_name}"
         entries = read_json_files(dbutils, metadata_dir)
 
         rows = [

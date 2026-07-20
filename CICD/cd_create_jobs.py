@@ -3,12 +3,13 @@
 """Utilities for creating and managing Databricks ingestion jobs."""
 
 # COMMAND ----------
+
 # DBTITLE 1, Magic Command
-# MAGIC %run /Workspace/Shared/Mars_AZURE_Pet_Care_MDIF/bronze/env
+# MAGIC %run ../env
 
 # COMMAND ----------
-# DBTITLE 1, Imports
 
+# DBTITLE 1, Imports
 import json
 from typing import Any
 
@@ -18,28 +19,19 @@ from databricks.sdk.service import compute, iam, jobs
 from pyspark.sql import SparkSession
 
 # COMMAND ----------
-# DBTITLE 1, Session & Secrets
 
-# Initialize Spark session hello world
+# DBTITLE 1, Session & Secrets
+# Initialize Spark session
 dbutils: Any
 spark = SparkSession.builder.getOrCreate()
 spark = get_or_create_spark(spark=spark, app_name="MDIF-DeployJobs")
 
-# Service principal credentials for Databricks SDK authentication
-CLIENT_ID       = dbutils.secrets.get(scope=SCOPE, key="team-sp-client-id")
-CLIENT_SECRET   = dbutils.secrets.get(scope=SCOPE, key="team-sp-client-secret")
-TENANT_ID       = dbutils.secrets.get(scope=SCOPE, key="team-tenant-id")
-DATABRICKS_HOST = "https://adb-7405616865282613.13.azuredatabricks.net"
-
-# Comma-separated team members with CAN_MANAGE access
-TEAM_MEMBERS: list = [
-    email.strip()
-    for email in dbutils.secrets.get(scope=SCOPE, key="team-members").split(",")
-]
+# DATABRICKS_HOST and DATABRICKS_TOKEN are already loaded from env.py
+# No Service Principal / team-members needed on Free Edition
 
 # COMMAND ----------
-# DBTITLE 1, Helper — Format Job Name
 
+# DBTITLE 1, Helper — Format Job Name
 def databricks_job_name(job_name: str) -> str:
     """
     Generate standardized Databricks job name.
@@ -51,8 +43,8 @@ def databricks_job_name(job_name: str) -> str:
     return f"MDIF_{job_name.upper().replace(' ', '_')}"
 
 # COMMAND ----------
-# DBTITLE 1, Helper — Fetch Existing Jobs
 
+# DBTITLE 1, Helper — Fetch Existing Jobs
 def get_existing_jobs(w: WorkspaceClient) -> dict:
     """
     Retrieve all existing Databricks jobs.
@@ -66,9 +58,10 @@ def get_existing_jobs(w: WorkspaceClient) -> dict:
         for job in w.jobs.list(expand_tasks=False)
         if job.settings and job.settings.name
     }
-# COMMAND ----------
-# DBTITLE 1, Build Job Settings
 
+# COMMAND ----------
+
+# DBTITLE 1, Build Job Settings
 def _build_job_settings(
     job_name: str,
     table_names: list,
@@ -85,8 +78,6 @@ def _build_job_settings(
     Returns:
         dict: Complete job settings dictionary.
     """
-    job_cluster_key = "mdif_job_compute"
-
     # Resolve trigger configuration
     trigger_type = trigger_row["type"] if trigger_row else None
     schedule = None
@@ -110,27 +101,14 @@ def _build_job_settings(
                 "warning: file_arrival trigger defined but source_path is missing"
             )
 
-    # Build base job settings
+    # Build base job settings (serverless compute — no job_clusters)
     settings = dict(
         name=databricks_job_name(job_name),
         tags={"mdif_job_name": job_name, "managed_by": "cd_create_jobs"},
-        job_clusters=[
-            jobs.JobCluster(
-                job_cluster_key=job_cluster_key,
-                new_cluster=compute.ClusterSpec(
-                    policy_id=POLICY_ID,
-                    driver_node_type_id="Standard_D4ds_v6",
-                    node_type_id="Standard_D4ds_v6",
-                    num_workers=3,
-                    data_security_mode=compute.DataSecurityMode.SINGLE_USER,
-                ),
-            )
-        ],
         tasks=[
             # Load environment
             jobs.Task(
                 task_key="start_job",
-                job_cluster_key=job_cluster_key,
                 notebook_task=jobs.NotebookTask(
                     notebook_path=f"{WORKSPACE_PATH}/start_job",
                     source=jobs.Source.WORKSPACE,
@@ -143,7 +121,6 @@ def _build_job_settings(
             # Read metadata
             jobs.Task(
                 task_key="read_metadata",
-                job_cluster_key=job_cluster_key,
                 depends_on=[jobs.TaskDependency(task_key="start_job")],
                 notebook_task=jobs.NotebookTask(
                     notebook_path=f"{WORKSPACE_PATH}/read_metadata",
@@ -166,7 +143,6 @@ def _build_job_settings(
                     concurrency=max(1, min(len(table_names), 100)),
                     task=jobs.Task(
                         task_key="ingestor_iteration",
-                        job_cluster_key=job_cluster_key,
                         libraries=[
                             compute.Library(requirements=REQUIREMENTS)
                         ],
@@ -184,7 +160,6 @@ def _build_job_settings(
             # Dashboard updates
             jobs.Task(
                 task_key="dashboard_updates",
-                job_cluster_key=job_cluster_key,
                 depends_on=[
                     jobs.TaskDependency(task_key="ingestor")
                 ],
@@ -198,7 +173,6 @@ def _build_job_settings(
             # Notifications
             jobs.Task(
                 task_key="notify_job",
-                job_cluster_key=job_cluster_key,
                 depends_on=[
                     jobs.TaskDependency(task_key="ingestor")
                 ],
@@ -209,15 +183,8 @@ def _build_job_settings(
                 ),
             ),
         ],
-        run_as=jobs.JobRunAs(service_principal_name=CLIENT_ID),
-        access_control_list=[
-            iam.AccessControlRequest(
-                user_name=email,
-                permission_level=iam.PermissionLevel.CAN_MANAGE,
-            )
-            for email in TEAM_MEMBERS
-        ],
     )
+    # TODO: run_as and access_control_list removed (not supported on Free Edition serverless)
 
     # Attach trigger if configured
     if schedule:
@@ -229,9 +196,10 @@ def _build_job_settings(
         )
 
     return settings
-# COMMAND ----------
-# DBTITLE 1, Create Job
 
+# COMMAND ----------
+
+# DBTITLE 1, Create Job
 def create_job(
     w: WorkspaceClient,
     job_name: str,
@@ -264,8 +232,8 @@ def create_job(
 
 
 # COMMAND ----------
-# DBTITLE 1, Update Job
 
+# DBTITLE 1, Update Job
 def update_job(
     w: WorkspaceClient,
     job_id: int,
@@ -307,8 +275,8 @@ def update_job(
 
 
 # COMMAND ----------
-# DBTITLE 1, Main — Deploy Job
 
+# DBTITLE 1, Main — Deploy Job
 def main() -> None:
     """
     Deploy or update Databricks ingestion job.
@@ -322,9 +290,7 @@ def main() -> None:
 
     w = WorkspaceClient(
         host=DATABRICKS_HOST,
-        azure_client_id=CLIENT_ID,
-        azure_client_secret=CLIENT_SECRET,
-        azure_tenant_id=TENANT_ID,
+        token=DATABRICKS_TOKEN,
     )
 
     rows = (
@@ -389,6 +355,6 @@ def main() -> None:
 
 
 # COMMAND ----------
-# DBTITLE 1, Execute
 
+# DBTITLE 1, Execute
 main()
