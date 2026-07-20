@@ -1,6 +1,6 @@
 # Databricks notebook source
 import sys
-BRONZE_PATH = "/Workspace/Shared/Mars_AZURE_Pet_Care_MDIF/bronze"
+BRONZE_PATH = "/Workspace/Shared/bronze"
 if BRONZE_PATH not in sys.path:
     sys.path.insert(0, BRONZE_PATH)
 

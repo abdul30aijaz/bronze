@@ -12,6 +12,10 @@ written on both success and failure paths regardless of Jobs API quirks.
 # COMMAND ----------
 
 # DBTITLE 1, Dashboard update
+# DISABLED: Dashboard updates temporarily disabled during migration
+print("[DASHBOARD] Dashboard update task skipped — disabled for now")
+dbutils.notebook.exit("Dashboard updates disabled")
+
 import requests
 import json
 from datetime import datetime, timedelta

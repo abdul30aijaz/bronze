@@ -12,5 +12,8 @@
 # COMMAND ----------
 
 # DBTITLE 1,Environment Summary
-print(f"DEV_PATH: {DEV_PATH}")
+print(f"WORKSPACE_PATH: {WORKSPACE_PATH}")
+print(f"CATALOG: {CATALOG}")
+print(f"LANDING_BASE: {LANDING_BASE}")
+print(f"RAW_BASE: {RAW_BASE}")
 print(f"DEFAULT_CONTROL_TABLE: {DEFAULT_CONTROL_TABLE}")

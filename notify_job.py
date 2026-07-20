@@ -311,4 +311,8 @@ def main():
 # COMMAND ----------
 
 # DBTITLE 1, Execute
-main()
+# DISABLED: Notifications temporarily disabled during migration
+# Uncomment after SMTP is configured
+# main()
+
+print("[NOTIFY] Notification task skipped — notifications disabled for now")
