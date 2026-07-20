@@ -2,11 +2,11 @@
 
 import logging
 import os
-import sys
 from datetime import datetime
+from typing import Optional
 
-sys.path.insert(0, "/Workspace/Shared/bronze")
-from env import CATALOG
+# Define CATALOG directly (cannot import from notebook)
+CATALOG = "workspace"
 
 os.environ["TQDM_DISABLE"] = "1"
 os.environ["PYARROW_IGNORE_TIMEZONE"] = "1"
@@ -39,7 +39,7 @@ if not _console_logger.handlers:
     _console_logger.addHandler(_handler)
 
 # Module-level cache so the SDK call only happens once per process
-_cached_job_name: str | None = None
+_cached_job_name: Optional[str] = None
 
 
 def _get_job_name(spark) -> str:

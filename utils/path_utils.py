@@ -1,6 +1,9 @@
 
 """Path resolution utilities for standardized data lake structure."""
 
+# Define CATALOG directly (cannot import from notebook)
+CATALOG = "workspace"
+
 
 def _get_schema_name(source_name: str, market: str) -> str:
     """
@@ -42,10 +45,6 @@ def resolve_paths(
     Returns:
         dict: Resolved landing, raw, and curated paths.
     """
-    import sys
-    sys.path.insert(0, "/Workspace/Shared/bronze")
-    from env import CATALOG
-    
     base = f"{region}/{market}/{domain}/{source_name}/{table_name}"
     schema_name = _get_schema_name(source_name, market)
 
