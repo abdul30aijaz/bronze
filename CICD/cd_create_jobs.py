@@ -29,6 +29,8 @@ spark = get_or_create_spark(spark=spark, app_name="MDIF-DeployJobs")
 # DATABRICKS_HOST and DATABRICKS_TOKEN are already loaded from env.py
 # No Service Principal / team-members needed on Free Edition
 
+ENVIRONMENT_KEY = "mdif_env"
+
 # COMMAND ----------
 
 # DBTITLE 1, Helper — Format Job Name
@@ -105,6 +107,15 @@ def _build_job_settings(
     settings = dict(
         name=databricks_job_name(job_name),
         tags={"mdif_job_name": job_name, "managed_by": "cd_create_jobs"},
+        environments=[
+            jobs.JobEnvironment(
+                environment_key=ENVIRONMENT_KEY,
+                spec=compute.Environment(
+                    client="1",
+                    dependencies=[f"-r {REQUIREMENTS}"],
+                ),
+            ),
+        ],
         tasks=[
             # Load environment
             jobs.Task(
@@ -143,9 +154,7 @@ def _build_job_settings(
                     concurrency=max(1, min(len(table_names), 100)),
                     task=jobs.Task(
                         task_key="ingestor_iteration",
-                        libraries=[
-                            compute.Library(requirements=REQUIREMENTS)
-                        ],
+                        environment_key=ENVIRONMENT_KEY,
                         notebook_task=jobs.NotebookTask(
                             notebook_path=f"{WORKSPACE_PATH}/main",
                             source=jobs.Source.WORKSPACE,
