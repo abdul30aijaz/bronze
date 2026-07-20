@@ -4,6 +4,10 @@ and writes the result to Delta. On structural validation failure, failed checks
 are logged to the DQ error table before the error is re-raised.
 """
 
+import sys
+sys.path.insert(0, "/Workspace/Shared/bronze")
+from env import CATALOG
+
 from connectors.delta_connector import (
     write_delta, _is_uc_table, _table_exists, _read_delta_df,
 )
@@ -139,7 +143,7 @@ def process_raw_trusted(spark, dbutils, df, layer_config, table_config, paths, r
     source_lower   = source_name.lower().strip().replace(" ", "_")
     market_lower   = market.lower().strip().replace(" ", "_")
     target_schema  = f"{source_lower}_{market_lower}"
-    target_catalog = "cdap_mars_pc_mdif"
+    target_catalog = CATALOG
 
     # Structural validation — the 4 checks defined in validation/validations.py:
     # duplicate_row_validation, row_count_validation, primary_key_validation, schema_validation

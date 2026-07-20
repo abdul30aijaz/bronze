@@ -2,7 +2,11 @@
 
 import logging
 import os
+import sys
 from datetime import datetime
+
+sys.path.insert(0, "/Workspace/Shared/bronze")
+from env import CATALOG
 
 os.environ["TQDM_DISABLE"] = "1"
 os.environ["PYARROW_IGNORE_TIMEZONE"] = "1"
@@ -110,7 +114,7 @@ def get_run_id(spark):
 
 def get_log_table() -> str:
     """Return the single Unity Catalog logging table name."""
-    return "cdap_mars_pc_mdif.logging.pipeline_logs"
+    return f"{CATALOG}.logging.pipeline_logs"
 
 
 def ensure_log_table(spark):
@@ -118,7 +122,7 @@ def ensure_log_table(spark):
     log_table = get_log_table()
 
     try:
-        spark.sql("CREATE SCHEMA IF NOT EXISTS cdap_mars_pc_mdif.logging")
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CATALOG}.logging")
 
         spark.sql(f"""
             CREATE TABLE IF NOT EXISTS {log_table} (

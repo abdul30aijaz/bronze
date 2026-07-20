@@ -90,60 +90,35 @@ _decrypt_udf = udf(_decrypt_with_key, StringType())
 
 
 def encrypt_pii_columns(df: DataFrame, pii_columns: list) -> DataFrame:
-    """Encrypt selected PII columns in a DataFrame.
+    """STUB: PII encryption disabled (Key Vault removed in migration).
+    
+    Returns DataFrame unchanged. Re-enable after configuring encryption keys.
 
     Args:
         df: Input DataFrame
-        pii_columns: Columns to encrypt
+        pii_columns: Columns to encrypt (ignored for now)
 
     Returns:
-        DataFrame with encrypted PII columns
+        DataFrame unchanged
     """
-    if not pii_columns:
-        return df
-
-    key_str = _get_encryption_key()
-    df_columns = set(df.columns)
-
-    column_updates = {}
-    for col_name in pii_columns:
-        if col_name in df_columns:
-            column_updates[col_name] = when(
-                col(col_name).isNotNull(),
-                _encrypt_udf(col(col_name).cast("string"), lit(key_str))
-            ).otherwise(col(col_name))
-            print(f"Encrypted PII column: {col_name}")
-        else:
-            print(f"Warning: missing column {col_name}")
-
-    return df.withColumns(column_updates) if column_updates else df
+    if pii_columns:
+        print(f"[WARNING] PII encryption disabled — {len(pii_columns)} column(s) NOT encrypted: {pii_columns}")
+        print("[WARNING] Configure encryption keys in mdif-cicd scope to re-enable")
+    return df
 
 
 def decrypt_pii_columns(df: DataFrame, pii_columns: list) -> DataFrame:
-    """Decrypt previously encrypted PII columns.
+    """STUB: PII decryption disabled (Key Vault removed in migration).
+    
+    Returns DataFrame unchanged.
 
     Args:
         df: Input DataFrame
-        pii_columns: Columns to decrypt
+        pii_columns: Columns to decrypt (ignored for now)
 
     Returns:
-        DataFrame with decrypted values
+        DataFrame unchanged
     """
-    if not pii_columns:
-        return df
-
-    key_str = _get_encryption_key()
-    df_columns = set(df.columns)
-
-    column_updates = {}
-    for col_name in pii_columns:
-        if col_name in df_columns:
-            column_updates[col_name] = when(
-                col(col_name).isNotNull(),
-                _decrypt_udf(col(col_name), lit(key_str))
-            ).otherwise(col(col_name))
-            print(f"Decrypted PII column: {col_name}")
-        else:
-            print(f"Warning: missing column {col_name}")
-
-    return df.withColumns(column_updates) if column_updates else df
+    if pii_columns:
+        print(f"[WARNING] PII decryption disabled — {len(pii_columns)} column(s) NOT decrypted: {pii_columns}")
+    return df

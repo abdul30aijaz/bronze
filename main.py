@@ -13,7 +13,7 @@ Parameters:
 # COMMAND ----------
 
 # DBTITLE 1,Load Environment
-# MAGIC %run /Workspace/Shared/Mars_AZURE_Pet_Care_MDIF/bronze/env
+# MAGIC %run /Workspace/Shared/bronze/env
 
 # COMMAND ----------
 
@@ -97,7 +97,8 @@ def _process_table(spark, table_config, ingestion_ts, run_id):
         region=region, market=market, domain=domain,
         source_name=source_name, table_name=table_name,
         ingestion_ts=ingestion_ts, job_name=job_name,
-        adls_base=ADLS_BASE,
+        landing_base=LANDING_BASE,
+        raw_base=RAW_BASE,
     )
 
     log_event(
@@ -115,7 +116,7 @@ def _process_table(spark, table_config, ingestion_ts, run_id):
 
     # ── Partial run: only raw_trusted → read from latest RAW parquet ──────────
     if not landing_enabled and not raw_enabled and raw_trusted_enabled:
-        raw_base  = f"{ADLS_BASE}/RAW/{region}/{market}/{domain}/{source_name}/{table_name}"
+        raw_base  = f"{RAW_BASE}/{region}/{market}/{domain}/{source_name}/{table_name}"
         latest_ts = sorted([f.name.rstrip("/") for f in dbutils.fs.ls(raw_base)])[-1]
         raw_path  = f"{raw_base}/{latest_ts}"
 
@@ -130,9 +131,9 @@ def _process_table(spark, table_config, ingestion_ts, run_id):
 
     # ── Partial run: raw + raw_trusted → read from latest LANDING csv ─────────
     elif not landing_enabled and raw_enabled:
-        landing_base = f"{ADLS_BASE}/LANDING/{region}/{market}/{domain}/{source_name}/{table_name}"
-        latest_ts    = sorted([f.name.rstrip("/") for f in dbutils.fs.ls(landing_base)])[-1]
-        landing_path = f"{landing_base}/{latest_ts}"
+        landing_base_path = f"{LANDING_BASE}/{region}/{market}/{domain}/{source_name}/{table_name}"
+        latest_ts         = sorted([f.name.rstrip("/") for f in dbutils.fs.ls(landing_base_path)])[-1]
+        landing_path      = f"{landing_base_path}/{latest_ts}"
 
         log_event(
             spark, "INFO",

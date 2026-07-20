@@ -1,5 +1,5 @@
 # Databricks notebook source
-# MAGIC %run /Workspace/Shared/Mars_AZURE_Pet_Care_MDIF/bronze/env
+# MAGIC %run /Workspace/Shared/bronze/env
 
 # COMMAND ----------
 
