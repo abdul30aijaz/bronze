@@ -141,17 +141,24 @@ def read_excel(
     if path.startswith(("abfss://", "dbfs:")):
         dbutils = DBUtils(spark)
 
-        tmp = tempfile.NamedTemporaryFile(
-            delete=False,
-            suffix=".xlsx"
-        )
-        local_path = tmp.name
-        tmp.close()
+        # Generate a unique local path under /Workspace (accessible on shared clusters)
+        import uuid
+        import time
+        unique_id = f"{int(time.time())}_{uuid.uuid4().hex[:8]}"
+        local_path = f"/Workspace/tmp/excel_{unique_id}.xlsx"
+        
+        # Ensure the workspace tmp directory exists
+        try:
+            dbutils.fs.mkdirs(f"file:///Workspace/tmp")
+        except Exception:
+            pass
 
         try:
+            # Copy from remote directly to local /Workspace path
             dbutils.fs.cp(path, f"file://{local_path}")
             df = pd.read_excel(local_path, **pandas_kwargs)
         finally:
+            # Clean up the temp file
             if os.path.exists(local_path):
                 os.remove(local_path)
     else:

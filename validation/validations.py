@@ -226,35 +226,43 @@ def _run_duplicate_row_validation(context, batch_definition, df: DataFrame, sour
     dataset remains fully deduplicated after ingestion steps.
 
     Args:
-        context: GE context.
-        batch_definition: Batch definition for dataset.
+        context: GE context (unused - bypass GX to avoid serverless caching issues).
+        batch_definition: Batch definition (unused).
         df: Spark DataFrame being validated.
         source_id: Identifier for dataset.
 
     Returns:
         Dict[str, Any]: Validation result with pass/fail status and details.
     """
-    distinct_count = df.distinct().count()
+    # Bypass Great Expectations entirely to avoid DataFrame caching (not supported on serverless)
+    # Compute counts directly using SQL
+    temp_view = f"_dup_check_{source_id.replace('.', '_')}"
+    df.createOrReplaceTempView(temp_view)
+    
+    spark = df.sparkSession
+    result_row = spark.sql(f"""
+        SELECT 
+            COUNT(*) as total_count,
+            COUNT(DISTINCT *) as distinct_count
+        FROM {temp_view}
+    """).collect()[0]
+    
+    total_count = result_row["total_count"]
+    distinct_count = result_row["distinct_count"]
+    spark.catalog.dropTempView(temp_view)
 
-    suite = gx.ExpectationSuite(name=f"{source_id}__duplicate_rows")
-    suite.add_expectation(
-        gx.expectations.ExpectTableRowCountToEqual(value=distinct_count)
-    )
-    result = _run_suite(context, batch_definition, suite, df)
-    observed = result.results[0].result.get("observed_value", "unknown")
-
-    if _all_passed(result):
+    if total_count == distinct_count:
         return {
             "name": "duplicate_row_validation",
             "passed": True,
-            "details": f"Duplicate row check passed -- all {observed} rows are unique",
+            "details": f"Duplicate row check passed -- all {total_count} rows are unique",
             "failed_checks": [],
         }
 
-    duplicate_count = observed - distinct_count
+    duplicate_count = total_count - distinct_count
     msg = (
         f"found {duplicate_count} duplicate row(s) after deduplication "
-        f"(total: {observed}, distinct: {distinct_count}) -- "
+        f"(total: {total_count}, distinct: {distinct_count}) -- "
         f"verify raw.deduplication config or widen subset_columns"
     )
     return {
@@ -271,29 +279,25 @@ def _run_row_count_validation(context, batch_definition, df, source_id):
     """Validate that dataset has at least one row.
 
     Args:
-        context: GE context.
-        batch_definition: Batch definition.
+        context: GE context (unused - bypass GX to avoid serverless caching issues).
+        batch_definition: Batch definition (unused).
         df: Spark DataFrame.
         source_id: Dataset identifier.
 
     Returns:
         Dict[str, Any]: Validation result.
     """
+    # Bypass Great Expectations to avoid DataFrame caching (not supported on serverless)
     min_value = 1
-    suite = gx.ExpectationSuite(name=f"{source_id}__row_count")
-    suite.add_expectation(gx.expectations.ExpectTableRowCountToBeBetween(min_value=min_value))
-    result = _run_suite(context, batch_definition, suite, df)
-    observed = result.results[0].result.get("observed_value", "unknown")
-    if _all_passed(result):
+    observed = df.count()
+    
+    if observed >= min_value:
         return {"name": "row_count_validation", "passed": True,
                 "details": f"Row count check passed -- {observed} rows found (min: {min_value})",
                 "failed_checks": []}
 
-    if isinstance(observed, int):
-        diff = min_value - observed
-        diff_str = f"short by {diff} row{'s' if diff != 1 else ''}"
-    else:
-        diff_str = "difference unknown"
+    diff = min_value - observed
+    diff_str = f"short by {diff} row{'s' if diff != 1 else ''}"
 
     msg = (
         f"ROW COUNT FAILED: found {observed} row(s) but expected at least "

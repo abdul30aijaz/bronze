@@ -12,7 +12,7 @@ VOLUME_NAME = "mdif_volume"
 VOLUME_BASE = f"/Volumes/{CATALOG}/{SCHEMA}/{VOLUME_NAME}"
 
 # Data layer base paths (Unity Catalog Volumes)
-LANDING_BASE = "/Volumes/workspace/default/staging"
+LANDING_BASE = "/Volumes/workspace/default/landing"
 RAW_BASE     = "/Volumes/workspace/default/raw"
 
 # COMMAND ----------

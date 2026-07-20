@@ -161,8 +161,9 @@ def process_raw(spark, dbutils, df, layer_config, table_config, paths, run_id):
 
     # Step 2: Schema enforcement / inference
     try:
-        df.cache()
-        df.count()
+        # Skip caching on serverless (not supported)
+        # df.cache()
+        # df.count()
 
         if schema_config == "enforce":
             augmented_schema = list(schema_cfg) + (
@@ -173,7 +174,7 @@ def process_raw(spark, dbutils, df, layer_config, table_config, paths, run_id):
         else:
             df = infer_schema(df)
 
-        df.unpersist()
+        # Unpersist removed since we're not caching
 
         row_count = df.count()
         log_event(
@@ -184,7 +185,7 @@ def process_raw(spark, dbutils, df, layer_config, table_config, paths, run_id):
             additional_data={"schema_config": schema_config, "layer": "raw"},
         )
     except Exception as exc:
-        df.unpersist()
+        # Unpersist removed since we're not caching
         log_event(
             spark, "ERROR",
             f"Schema apply FAILED: {table_name} -- {exc}", run_id,

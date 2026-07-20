@@ -362,7 +362,9 @@ def infer_schema(df):
     if not string_cols:
         return df
 
-    sample_df = df.limit(1000).cache()
+    sample_df = df.limit(1000)
+    # Skip caching on serverless (not supported)
+    # sample_df = sample_df.cache()
     sample_df.count()
 
     detected_types = {}
@@ -429,7 +431,7 @@ def infer_schema(df):
                     else "timestamp"
                 )
     finally:
-        sample_df.unpersist()
+        # Unpersist removed since we're not caching
         _drop_temp_view(spark, temp_view)
 
     if not detected_types:
