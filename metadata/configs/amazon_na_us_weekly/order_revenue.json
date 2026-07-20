@@ -5,7 +5,7 @@
   "source_name": "AMAZON",
   "notify": {
     "emails": [
-      "abdulaijaz109@gmail.com"
+      "aijazabdul233035@gmail.com"
     ]
   },
   "trigger": {
@@ -13,7 +13,7 @@
   },
   "ingestion_steps": {
     "landing": {
-      "source_path": "/Volumes/workspace/default/staging/NORTH AMERICA/US/SALES/AMAZON",
+      "source_path": "/Volumes/workspace/default/staging/NORTH AMERICA/US/DEMAND/AMAZON",
       "file_format": "excel",
       "excel_options": {
         "sheet_index": 0,
@@ -29,17 +29,12 @@
       "deduplication": true
     },
     "raw_trusted": {
-      "load_type": "scd_type1",
-      "primary_key": [
-        "asin",
-        "week_ending",
-        "fulfillment_center_id"
-      ],
-      "enable_expiration": false,
+      "load_type": "append",
+      "primary_key": [],
+      "enable_expiration": true,
       "validations": [
         "row_count_validation",
-        "schema_validation",
-        "primary_key_validation"
+        "schema_validation"
       ],
       "schema_evolution": true
     }
