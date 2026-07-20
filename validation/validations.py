@@ -310,8 +310,8 @@ def _run_primary_key_validation(context, batch_definition, df, source_id, primar
     """Validate primary key constraints (nulls + uniqueness).
 
     Args:
-        context: GE context.
-        batch_definition: Batch definition.
+        context: GE context (unused - bypass GX to avoid serverless caching issues).
+        batch_definition: Batch definition (unused).
         df: Spark DataFrame.
         source_id: Dataset identifier.
         primary_keys: List of primary key columns.
@@ -324,71 +324,46 @@ def _run_primary_key_validation(context, batch_definition, df, source_id, primar
                 "details": "Primary key check skipped -- no primary keys configured",
                 "failed_checks": []}
 
+    # Bypass Great Expectations to avoid DataFrame caching (not supported on serverless)
+    temp_view = f"_pk_check_{source_id.replace('.', '_')}"
+    df.createOrReplaceTempView(temp_view)
+    spark = df.sparkSession
+    
     total_rows = df.count()
     failed_msgs = []
 
-    null_suite = gx.ExpectationSuite(name=f"{source_id}__pk_not_null")
+    # Check for NULLs in primary key columns
     for col in primary_keys:
-        null_suite.add_expectation(
-            gx.expectations.ExpectColumnValuesToNotBeNull(column=col)
-        )
-    null_result = _run_suite(context, batch_definition, null_suite, df)
-    for res in null_result.results:
-        metrics = res.result or {}
-        col = _extract_column(res) or "unknown"
-        unexpected = metrics.get("unexpected_count", 0)
-        if unexpected > 0 or not res.success:
-            null_count = unexpected if unexpected > 0 else "unknown"
+        null_count = spark.sql(f"""
+            SELECT COUNT(*) as cnt 
+            FROM {temp_view} 
+            WHERE `{col}` IS NULL
+        """).collect()[0]["cnt"]
+        
+        if null_count > 0:
             failed_msgs.append(f"column '{col}' has {null_count} NULLs")
 
-    unique_suite = gx.ExpectationSuite(name=f"{source_id}__pk_unique")
-    if len(primary_keys) == 1:
-        unique_suite.add_expectation(
-            gx.expectations.ExpectColumnUniqueValueCountToBeBetween(
-                column=primary_keys[0],
-                min_value=total_rows,
+    # Check uniqueness
+    pk_cols = ", ".join([f"`{col}`" for col in primary_keys])
+    result = spark.sql(f"""
+        SELECT COUNT(*) as total_count, COUNT(DISTINCT {pk_cols}) as distinct_count
+        FROM {temp_view}
+    """).collect()[0]
+    
+    distinct_count = result["distinct_count"]
+    spark.catalog.dropTempView(temp_view)
+    
+    if distinct_count < total_rows:
+        dup_count = total_rows - distinct_count
+        if len(primary_keys) == 1:
+            failed_msgs.append(
+                f"column '{primary_keys[0]}' has {dup_count} duplicate rows "
+                f"(unique: {distinct_count}, total: {total_rows})"
             )
-        )
-    else:
-        unique_suite.add_expectation(
-            gx.expectations.ExpectCompoundColumnsToBeUnique(column_list=primary_keys)
-        )
-    unique_result = _run_suite(context, batch_definition, unique_suite, df)
-    for res in unique_result.results:
-        metrics = res.result or {}
-        exp_type = _get_exp_type(res)
-        if "unique_value_count" in exp_type or "unique_count" in exp_type:
-            observed_unique = metrics.get("observed_value", None)
-            if observed_unique is not None and observed_unique < total_rows:
-                dup_count = total_rows - observed_unique
-                col = _extract_column(res) or primary_keys[0]
-                failed_msgs.append(
-                    f"column '{col}' has {dup_count} duplicate rows "
-                    f"(unique: {observed_unique}, total: {total_rows})"
-                )
-            elif not res.success:
-                observed_unique = metrics.get("observed_value", "unknown")
-                col = _extract_column(res) or primary_keys[0]
-                failed_msgs.append(
-                    f"column '{col}' failed uniqueness check "
-                    f"(unique: {observed_unique}, expected: {total_rows})"
-                )
-        elif "compound" in exp_type:
-            unexpected = metrics.get("unexpected_count", 0)
-            if unexpected > 0 or not res.success:
-                dup_count = unexpected if unexpected > 0 else "unknown"
-                failed_msgs.append(
-                    f"composite key {primary_keys} has {dup_count} duplicate rows"
-                )
-        elif "to_be_unique" in exp_type:
-            unexpected = metrics.get("unexpected_count", 0)
-            unexpected_pct = metrics.get("unexpected_percent", 0)
-            if unexpected > 0 or not res.success:
-                col = _extract_column(res) or primary_keys[0]
-                pct_str = f" ({unexpected_pct:.2f}%)" if unexpected_pct else ""
-                failed_msgs.append(
-                    f"column '{col}' has {unexpected} duplicate values{pct_str}"
-                )
+        else:
+            failed_msgs.append(
+                f"composite key {primary_keys} has {dup_count} duplicate rows"
+            )
 
     if not failed_msgs:
         return {"name": "primary_key_validation", "passed": True,
@@ -463,28 +438,26 @@ def run_detailed(df: DataFrame, config: Dict[str, Any]) -> List[Dict[str, Any]]:
     Raises:
         ValidationError: If one or more validations fail.
     """
+    # All validations now use Spark SQL directly (no Great Expectations caching)
     source_id = config.get("table_name", "unknown")
     enabled = _get_enabled_validations(config)
     primary_keys = _get_primary_keys(config)
     expected_columns = _get_expected_columns(config)
 
-    context = _build_context()
-    batch_definition = _get_batch_definition(context, df, source_id)
-
     results = []
 
     # Mandatory: always runs
-    results.append(_run_duplicate_row_validation(context, batch_definition, df, source_id))
+    results.append(_run_duplicate_row_validation(None, None, df, source_id))
 
     #  Configurable: controlled by validations list in config 
     if "row_count_validation" in enabled:
-        results.append(_run_row_count_validation(context, batch_definition, df, source_id))
+        results.append(_run_row_count_validation(None, None, df, source_id))
 
     if "primary_key_validation" in enabled:
-        results.append(_run_primary_key_validation(context, batch_definition, df, source_id, primary_keys))
+        results.append(_run_primary_key_validation(None, None, df, source_id, primary_keys))
 
     if "schema_validation" in enabled:
-        results.append(_run_schema_validation(context, batch_definition, df, source_id, expected_columns))
+        results.append(_run_schema_validation(None, None, df, source_id, expected_columns))
 
     # Collect all failures and raise if any 
     all_failed_checks = []
