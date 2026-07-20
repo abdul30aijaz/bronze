@@ -1,6 +1,6 @@
 # MDIF — Metadata Data-driven Ingestion Framework (Bronze Layer)
 
-MDIF is the **Bronze-layer ingestion framework** for the **Mars Pet Care** data platform, built on **Azure Databricks + Unity Catalog + ADLS Gen2**. It ingests data from files, databases, and APIs through three progressively-cleaned layers — **Landing → Raw → Raw Trusted** — for every source table, using a single generic pipeline driven entirely by **metadata**, instead of one script per source.
+MDIF is the **Bronze-layer ingestion framework** for the data products built on **Azure Databricks + Unity Catalog **. It ingests data from files, databases, and APIs through three progressively-cleaned layers — **Landing → Raw → Raw Trusted** — for every source table, using a single generic pipeline driven entirely by **metadata**, instead of one script per source.
 
 Adding a new table to ingest means adding a metadata JSON config — not writing new pipeline code.
 
