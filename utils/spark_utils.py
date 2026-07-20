@@ -9,8 +9,6 @@ def get_or_create_spark(
 ) -> SparkSession:
     """Return existing SparkSession or create one with ADLS authentication."""
     if spark is not None:
-        spark.sparkContext.setLogLevel("WARN")
-        
         try:
             from pyspark.dbutils import DBUtils
             dbutils = DBUtils(spark)
