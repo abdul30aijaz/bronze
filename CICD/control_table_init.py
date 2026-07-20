@@ -355,7 +355,7 @@ def run() -> None:
     incoming = spark.createDataFrame(all_rows, schema=INCOMING_SCHEMA)
     incoming = align_incoming_to_target(incoming, spark)
 
-    spark.conf.set("spark.databricks.delta.schema.autoMerge.enabled", "true")
+    # Schema alignment handled by align_incoming_to_target() - no config needed on serverless
 
     DeltaTable.forName(spark, DEFAULT_CONTROL_TABLE) \
         .alias("tgt") \
