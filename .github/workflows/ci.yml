@@ -1,62 +1,46 @@
 name: Framework CI
-
 on:
   push:
     branches: [dev]
     paths-ignore:
       - 'metadata/**'
-  pull_request:
-    branches: [dev]
-    paths-ignore:
-      - 'metadata/**'
-
 jobs:
-
   # STAGE 1: CI - Run checks
   lint-and-test:
     runs-on: ubuntu-latest
     name: "1. CI Checks (pytest)"
-
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
-
       - name: Set Python version
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-
       - name: Install CI tools
         run: |
           echo "Installing CI dependencies..."
           pip install pytest --quiet
           pytest --version
           echo "All dependencies installed"
-
       - name: pytest - structure and syntax checks
         run: |
           echo "Running pytest..."
           pytest tests/tests_framework.py -v --tb=short
           echo "pytest passed"
-
   # STAGE 2: Deploy to DEV
   deploy_dev:
     needs: lint-and-test
     runs-on: ubuntu-latest
     name: "2. Deploy to DEV Databricks"
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
-
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
-
       - name: Install Databricks CLI
         run: |
           echo "Installing Databricks CLI..."
           curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
           echo "$HOME/bin" >> "$GITHUB_PATH"
           databricks --version
-
       - name: Validate Databricks connection
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
@@ -66,7 +50,6 @@ jobs:
           echo "Validating Databricks connection..."
           databricks workspace list /
           echo "Connected to Databricks successfully"
-
       - name: Pull latest into Databricks Repo - DEV
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
@@ -76,7 +59,5 @@ jobs:
           echo "Pulling latest code into Databricks Repo..."
           echo "Repo ID : ${{ secrets.DATABRICKS_REPO_ID }}"
           echo "Branch  : dev"
-
           databricks repos update "${{ secrets.DATABRICKS_REPO_ID }}" --branch dev
-
           echo "DEV repo updated successfully!"
