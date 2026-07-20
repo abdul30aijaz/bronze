@@ -13,7 +13,7 @@
   },
   "ingestion_steps": {
     "landing": {
-      "source_path": "abfss://marspcmdif@cdapshareddesacin.dfs.core.windows.net/STAGING/NORTH AMERICA/US/DEMAND/AMAZON",
+      "source_path": "/Volumes/workspace/default/staging/NORTH AMERICA/US/SALES/AMAZON",
       "file_format": "excel",
       "excel_options": {
         "sheet_index": 0,
