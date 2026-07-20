@@ -234,22 +234,8 @@ def _run_duplicate_row_validation(context, batch_definition, df: DataFrame, sour
     Returns:
         Dict[str, Any]: Validation result with pass/fail status and details.
     """
-    # Bypass Great Expectations entirely to avoid DataFrame caching (not supported on serverless)
-    # Compute counts directly using SQL
-    temp_view = f"_dup_check_{source_id.replace('.', '_')}"
-    df.createOrReplaceTempView(temp_view)
-    
-    spark = df.sparkSession
-    result_row = spark.sql(f"""
-        SELECT 
-            COUNT(*) as total_count,
-            COUNT(DISTINCT *) as distinct_count
-        FROM {temp_view}
-    """).collect()[0]
-    
-    total_count = result_row["total_count"]
-    distinct_count = result_row["distinct_count"]
-    spark.catalog.dropTempView(temp_view)
+    total_count = df.count()
+    distinct_count = df.dropDuplicates().count()
 
     if total_count == distinct_count:
         return {
@@ -271,7 +257,6 @@ def _run_duplicate_row_validation(context, batch_definition, df: DataFrame, sour
         "details": f"Duplicate row check failed -- {msg}",
         "failed_checks": [f"DUPLICATE ROWS FAILED: {msg}"],
     }
-
 
 # Configurable checks 
 
