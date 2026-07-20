@@ -1,4 +1,80 @@
-- name: Upload metadata JSONs to Volume
+name: Metadata Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_names:
+        description: "Comma-separated job names (e.g. orders,customers,inventory)"
+        required: true
+        type: string
+
+jobs:
+
+  # STAGE 1: Validate job names have matching metadata folders
+  validate:
+    runs-on: ubuntu-latest
+    name: "1. Validate Job Names"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check metadata folders exist
+        env:
+          JOB_NAMES_INPUT: ${{ inputs.job_names }}
+        run: |
+          set -e
+          echo "Validating job names..."
+
+          IFS=',' read -ra JOBS <<< "$JOB_NAMES_INPUT"
+          MISSING=()
+
+          for JOB_NAME in "${JOBS[@]}"; do
+            JOB_NAME=$(echo "$JOB_NAME" | xargs)
+            DIR="metadata/configs/$JOB_NAME"
+
+            if [ ! -d "$DIR" ]; then
+              MISSING+=("$JOB_NAME")
+              continue
+            fi
+
+            COUNT=$(ls "$DIR"/*.json 2>/dev/null | wc -l)
+            if [ "$COUNT" -eq 0 ]; then
+              echo "WARNING: $DIR exists but has no JSON files"
+            else
+              echo "ok: $JOB_NAME ($COUNT json file(s))"
+            fi
+          done
+
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo ""
+            echo "ERROR: no metadata folder found for: ${MISSING[*]}"
+            echo ""
+            echo "Available job names:"
+            ls -1 metadata/configs/
+            exit 1
+          fi
+
+          echo ""
+          echo "All job names validated"
+
+  # STAGE 2: Upload metadata to Volume and trigger MDIF Job Deployment
+  deploy_metadata:
+    needs: validate
+    runs-on: ubuntu-latest
+    name: "2. Deploy Metadata to DEV"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+          sudo apt-get update -qq && sudo apt-get install -y jq
+
+      - name: Upload metadata JSONs to Volume
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
@@ -8,11 +84,6 @@
           IFS=',' read -ra JOBS <<< "$JOB_NAMES_INPUT"
           for JOB_NAME in "${JOBS[@]}"; do
             JOB_NAME=$(echo "$JOB_NAME" | xargs)
-
-            if [ ! -d "metadata/configs/$JOB_NAME" ]; then
-              echo "ERROR: metadata/configs/$JOB_NAME not found in repo"
-              exit 1
-            fi
 
             VOLUME_DIR="dbfs:/Volumes/workspace/metadata/mdif_volume/metadata/configs/$JOB_NAME"
             databricks fs mkdir "$VOLUME_DIR"
@@ -24,3 +95,63 @@
 
             echo "Uploaded $(ls metadata/configs/"$JOB_NAME"/*.json | wc -l) JSON file(s) for $JOB_NAME"
           done
+
+      - name: Trigger and poll MDIF Job Deployment
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          JOB_NAMES_INPUT: ${{ inputs.job_names }}
+        run: |
+          set -e
+          JOB_ID=$(databricks jobs list --output json | jq -r \
+            '.[] | select(.settings.name=="MDIF Job Deployment") | .job_id')
+
+          if [ -z "$JOB_ID" ] || [ "$JOB_ID" = "null" ]; then
+            echo "ERROR: 'MDIF Job Deployment' not found in workspace"
+            exit 1
+          fi
+
+          echo "Found MDIF Job Deployment | job_id=$JOB_ID"
+
+          JOB_NAMES_JSON=$(echo "$JOB_NAMES_INPUT" | tr ',' '\n' | \
+            jq -Rsc '[split("\n")[] | select(length > 0) | ltrimstr(" ") | rtrimstr(" ")]')
+
+          echo "JOB_NAMES: $JOB_NAMES_JSON"
+
+          jq -n \
+            --argjson job_id "$JOB_ID" \
+            --arg job_names "$JOB_NAMES_JSON" \
+            '{job_id: $job_id, job_parameters: {JOB_NAMES: $job_names}}' \
+            > /tmp/run_payload.json
+
+          echo "Triggering MDIF Job Deployment..."
+          RUN_ID=$(databricks jobs run-now --json @/tmp/run_payload.json -o json | jq -r '.run_id')
+
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "ERROR: Failed to trigger MDIF Job Deployment"
+            exit 1
+          fi
+
+          echo "Triggered | Job=$JOB_ID | Run=$RUN_ID"
+
+          while true; do
+            STATE=$(databricks jobs get-run "$RUN_ID" -o json | jq -r '.state.life_cycle_state')
+            echo "$(date '+%H:%M:%S') | $STATE"
+            if [[ "$STATE" == "TERMINATED" || "$STATE" == "SKIPPED" || "$STATE" == "INTERNAL_ERROR" ]]; then
+              break
+            fi
+            sleep 15
+          done
+
+          FINAL=$(databricks jobs get-run "$RUN_ID" -o json)
+          RESULT=$(echo "$FINAL" | jq -r '.state.result_state')
+
+          echo "$FINAL" | jq -r '.tasks[]? | "  \(.task_key): \(.state.result_state // "unknown")"'
+          echo "Result: $RESULT"
+
+          if [[ "$RESULT" != "SUCCESS" ]]; then
+            echo "$FINAL" | jq -r '.tasks[]? | select(.state.result_state != "SUCCESS") | "  FAILED \(.task_key): \(.state.state_message // "no message")"'
+            exit 1
+          fi
+
+          echo "Metadata deployment complete"
