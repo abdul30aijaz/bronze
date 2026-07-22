@@ -193,7 +193,6 @@ try:
     )
 
     print("Task values pushed:")
-    print(f"  table_configs -> {json.dumps(configs, default=json_safe)}")
     print(f"  table_names   -> {json.dumps(filtered_table_names)}")
     print(f"  pipeline_name -> {pipeline_name}")
 
