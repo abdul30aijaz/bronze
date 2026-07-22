@@ -1,0 +1,124 @@
+{
+  "region": "NORTH AMERICA",
+  "market": "CA",
+  "domain": "DEMAND",
+  "source_name": "PETSMART",
+  "notify": {
+    "emails": [
+      "aijazabdul233035@gmail.com"
+    ]
+  },
+  "trigger": {
+    "type": ""
+  },
+  "ingestion_steps": {
+    "landing": {
+      "source_path": "/Volumes/workspace/default/staging/NORTH AMERICA/CA/DEMAND/PETSMART",
+      "file_format": "csv",
+      "csv_options": {
+        "delimiter": ","
+      },
+      "pii_columns": []
+    },
+    "raw": {
+      "schema_config": "enforce",
+      "deduplication": true
+    },
+    "raw_trusted": {
+      "load_type": "append",
+      "primary_key": [],
+      "enable_expiration": false,
+      "validations": [
+        "row_count_validation",
+        "schema_validation"
+      ],
+      "schema_evolution": true
+    }
+  },
+  "schema": [
+    {
+      "column_name": "ad_event_id",
+      "data_type": "int"
+    },
+    {
+      "column_name": "campaign_id",
+      "data_type": "string"
+    },
+    {
+      "column_name": "ad_id",
+      "data_type": "date"
+    },
+    {
+      "column_name": "ad_group_id",
+      "data_type": "string"
+    },
+    {
+      "column_name": "campaign_name",
+      "data_type": "string"
+    },
+    {
+      "column_name": "platform",
+      "data_type": "string"
+    },
+    {
+      "column_name": "objective",
+      "data_type": "string"
+    },
+    {
+      "column_name": "ad_date",
+      "data_type": "date"
+    },
+    {
+      "column_name": "region",
+      "data_type": "string"
+    },
+    {
+      "column_name": "device",
+      "data_type": "string"
+    },
+    {
+      "column_name": "impressions",
+      "data_type": "int"
+    },
+    {
+      "column_name": "clicks",
+      "data_type": "int"
+    },
+    {
+      "column_name": "ctr",
+      "data_type": "double"
+    },
+    {
+      "column_name": "cpc",
+      "data_type": "double"
+    },
+    {
+      "column_name": "spend",
+      "data_type": "double"
+    },
+    {
+      "column_name": "conversions",
+      "data_type": "int"
+    },
+    {
+      "column_name": "conversion_rate",
+      "data_type": "double"
+    },
+    {
+      "column_name": "revenue",
+      "data_type": "double"
+    },
+    {
+      "column_name": "roas",
+      "data_type": "double"
+    },
+    {
+      "column_name": "quality_score",
+      "data_type": "int"
+    },
+    {
+      "column_name": "status",
+      "data_type": "string"
+    }
+  ]
+}
