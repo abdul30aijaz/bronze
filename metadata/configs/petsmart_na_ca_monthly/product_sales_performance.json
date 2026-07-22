@@ -13,7 +13,7 @@
   },
   "ingestion_steps": {
     "landing": {
-      "source_path": "abfss://marspcmdif@cdapshareddesacin.dfs.core.windows.net/STAGING/NORTH AMERICA/CA/DEMAND/PETSMART",
+      "source_path": "/Volumes/workspace/default/staging/NORTH AMERICA/CA/DEMAND/PETSMART",
       "file_format": "csv",
       "csv_options": {
         "delimiter": ","
