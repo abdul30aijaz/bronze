@@ -46,7 +46,7 @@
     },
     {
       "column_name": "ad_id",
-      "data_type": "date"
+      "data_type": "string"
     },
     {
       "column_name": "ad_group_id",
