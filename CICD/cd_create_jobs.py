@@ -111,7 +111,7 @@ def _build_job_settings(
             jobs.JobEnvironment(
                 environment_key=ENVIRONMENT_KEY,
                 spec=compute.Environment(
-                    client="1",
+                    client="5",
                     dependencies=[f"-r {REQUIREMENTS}"],
                 ),
             ),
