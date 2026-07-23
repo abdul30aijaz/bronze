@@ -13,7 +13,7 @@
   },
   "ingestion_steps": {
     "landing": {
-      "source_path": "Volumes/workspace/default/staging/NORTH AMERICA/US/DEMAND/WALMART",
+      "source_path": "/Volumes/workspace/default/staging/NORTH AMERICA/US/DEMAND/WALMART",
       "file_format": "csv",
       "csv_options": {
         "delimiter": ";"
