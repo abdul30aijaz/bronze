@@ -1,0 +1,80 @@
+{
+  "region": "EUROPE",
+  "market": "UK",
+  "domain": "DEMAND",
+  "source_name": "LOBLAWS",
+  "notify": {
+    "emails": [
+      "aijazabdul233035@gmail.com"
+    ]
+  },
+  "trigger": {
+    "type": ""
+  },
+  "ingestion_steps": {
+    "landing": {
+      "source_path": "/Volumes/workspace/default/staging/EUROPE/UK/DEMAND/LOBLAWS",
+      "file_format": "excel",
+      "excel_options": {
+        "sheet_index": 0,
+        "header_row": 1,
+        "data_start_row": 2,
+        "data_end_row": 1048576,
+        "usecols": "A:I"
+      },
+      "pii_columns": []
+    },
+    "raw": {
+      "schema_config": "enforce",
+      "deduplication": true
+    },
+    "raw_trusted": {
+      "load_type": "append",
+      "primary_key": [],
+      "enable_expiration": false,
+      "validations": [
+        "row_count_validation",
+        "schema_validation"
+      ],
+      "schema_evolution": true
+    }
+  },
+  "schema": [
+    {
+      "column_name": "search_id",
+      "data_type": "string"
+    },
+    {
+      "column_name": "search_date",
+      "data_type": "date"
+    },
+    {
+      "column_name": "search_term",
+      "data_type": "string"
+    },
+    {
+      "column_name": "sku",
+      "data_type": "string"
+    },
+    {
+      "column_name": "store_banner",
+      "data_type": "string"
+    },
+    {
+      "column_name": "device_type",
+      "data_type": "string"
+    },
+    {
+      "column_name": "search_rank_position",
+      "data_type": "int"
+    },
+    {
+      "column_name": "impressions",
+      "data_type": "int"
+    },
+    {
+      "column_name": "clicks",
+      "data_type": "int"
+    }
+  ]
+}
