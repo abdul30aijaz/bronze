@@ -1,0 +1,132 @@
+{
+  "region": "NORTH AMERICA",
+  "market": "US",
+  "domain": "DEMAND",
+  "source_name": "INSTACART",
+  "notify": {
+    "emails": [
+      "1by22is004@bmsit.in"
+    ]
+  },
+  "trigger": {
+    "type": ""
+  },
+  "ingestion_steps": {
+    "landing": {
+      "source_path": "/Volumes/workspace/default/staging/NORTH AMERICA/US/DEMAND/INSTACART",
+      "file_format": "excel",
+      "excel_options": {
+        "sheet_index": 0,
+        "header_row": 1,
+        "data_start_row": 2,
+        "data_end_row": 1048576,
+        "usecols": "A:V"
+      },
+      "pii_columns": []
+    },
+    "raw": {
+      "schema_config": "enforce",
+      "deduplication": true
+    },
+    "raw_trusted": {
+      "load_type": "append",
+      "primary_key": [],
+      "enable_expiration": false,
+      "validations": [
+        "row_count_validation",
+        "schema_validation"
+      ],
+      "schema_evolution": true
+    }
+  },
+  "schema": [
+    {
+      "column_name": "date",
+      "data_type": "date"
+    },
+    {
+      "column_name": "status",
+      "data_type": "string"
+    },
+    {
+      "column_name": "campaign",
+      "data_type": "string"
+    },
+    {
+      "column_name": "ad_group",
+      "data_type": "string"
+    },
+    {
+      "column_name": "product",
+      "data_type": "string"
+    },
+    {
+      "column_name": "product_size",
+      "data_type": "string"
+    },
+    {
+      "column_name": "upc",
+      "data_type": "double"
+    },
+    {
+      "column_name": "spend",
+      "data_type": "double"
+    },
+    {
+      "column_name": "attributed_sales",
+      "data_type": "double"
+    },
+    {
+      "column_name": "attributed_quantities",
+      "data_type": "double"
+    },
+    {
+      "column_name": "roas",
+      "data_type": "double"
+    },
+    {
+      "column_name": "impressions",
+      "data_type": "double"
+    },
+    {
+      "column_name": "clicks",
+      "data_type": "double"
+    },
+    {
+      "column_name": "ctr",
+      "data_type": "double"
+    },
+    {
+      "column_name": "average_cpc",
+      "data_type": "double"
+    },
+    {
+      "column_name": "ntb_attributed_sale",
+      "data_type": "double"
+    },
+    {
+      "column_name": "percent_ntb",
+      "data_type": "double"
+    },
+    {
+      "column_name": "ntb_spend",
+      "data_type": "double"
+    },
+    {
+      "column_name": "ntb_roas",
+      "data_type": "double"
+    },
+    {
+      "column_name": "id",
+      "data_type": "string"
+    },
+    {
+      "column_name": "campaign_uuid",
+      "data_type": "string"
+    },
+    {
+      "column_name": "ad_group_uuid",
+      "data_type": "string"
+    }
+  ]
+}
