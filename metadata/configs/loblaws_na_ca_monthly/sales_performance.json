@@ -1,0 +1,100 @@
+{
+  "region": "NORTH AMERICA",
+  "market": "CA",
+  "domain": "DEMAND",
+  "source_name": "LOBLAWS",
+  "notify": {
+    "emails": [
+      "1by22is004@bmsit.in"
+    ]
+  },
+  "trigger": {
+    "type": ""
+  },
+  "ingestion_steps": {
+    "landing": {
+      "source_path": "/Volumes/workspace/default/staging/NORTH AMERICA/CA/DEMAND/LOBLAWS",
+      "file_format": "excel",
+      "excel_options": {
+        "sheet_index": 0,
+        "header_row": 1,
+        "data_start_row": 2,
+        "data_end_row": 1048576,
+        "usecols": "A:N"
+      },
+      "pii_columns": []
+    },
+    "raw": {
+      "schema_config": "enforce",
+      "deduplication": true
+    },
+    "raw_trusted": {
+      "load_type": "append",
+      "primary_key": [],
+      "enable_expiration": false,
+      "validations": [
+        "row_count_validation",
+        "schema_validation"
+      ],
+      "schema_evolution": true
+    }
+  },
+  "schema": [
+    {
+      "column_name": "tactic",
+      "data_type": "string"
+    },
+    {
+      "column_name": "campaign",
+      "data_type": "string"
+    },
+    {
+      "column_name": "cost",
+      "data_type": "double"
+    },
+    {
+      "column_name": "reach",
+      "data_type": "double"
+    },
+    {
+      "column_name": "date",
+      "data_type": "date"
+    },
+    {
+      "column_name": "units_core",
+      "data_type": "double"
+    },
+    {
+      "column_name": "units_halo",
+      "data_type": "double"
+    },
+    {
+      "column_name": "revenue_core",
+      "data_type": "double"
+    },
+    {
+      "column_name": "revenue_halo",
+      "data_type": "double"
+    },
+    {
+      "column_name": "revenue_total",
+      "data_type": "double"
+    },
+    {
+      "column_name": "clicks",
+      "data_type": "double"
+    },
+    {
+      "column_name": "conversions_core",
+      "data_type": "double"
+    },
+    {
+      "column_name": "conversions_halo",
+      "data_type": "double"
+    },
+    {
+      "column_name": "spend",
+      "data_type": "double"
+    }
+  ]
+}
