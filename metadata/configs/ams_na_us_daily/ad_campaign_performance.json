@@ -1,0 +1,220 @@
+{
+  "region": "NORTH AMERICA",
+  "market": "US",
+  "domain": "DEMAND",
+  "source_name": "AMS",
+  "notify": {
+    "emails": [
+      "aijazabdul233035@gmail.com"
+    ]
+  },
+  "trigger": {
+    "type": ""
+  },
+  "ingestion_steps": {
+    "landing": {
+      "source_path": "/Volumes/workspace/default/staging/NORTH AMERICA/US/DEMAND/AMS",
+      "file_format": "excel",
+      "excel_options": {
+        "sheet_index": 0,
+        "header_row": 1,
+        "data_start_row": 2,
+        "data_end_row": 1048576,
+        "usecols": "A:AR"
+      },
+      "pii_columns": []
+    },
+    "raw": {
+      "schema_config": "enforce",
+      "deduplication": true
+    },
+    "raw_trusted": {
+      "load_type": "append",
+      "primary_key": [],
+      "enable_expiration": false,
+      "validations": [
+        "row_count_validation",
+        "schema_validation"
+      ],
+      "schema_evolution": true
+    }
+  },
+  "schema": [
+    {
+      "column_name": "adgroupid",
+      "data_type": "double"
+    },
+    {
+      "column_name": "adgroupname",
+      "data_type": "string"
+    },
+    {
+      "column_name": "adstatus",
+      "data_type": "string"
+    },
+    {
+      "column_name": "attributedsalessamesku14d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "attributedsalessamesku1d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "attributedsalessamesku30d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "attributedsalessamesku7d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "campaignapplicablebudgetruleid",
+      "data_type": "string"
+    },
+    {
+      "column_name": "campaignapplicablebudgetrulename",
+      "data_type": "string"
+    },
+    {
+      "column_name": "campaignbiddingstrategy",
+      "data_type": "string"
+    },
+    {
+      "column_name": "campaignbudgetamount",
+      "data_type": "double"
+    },
+    {
+      "column_name": "campaignbudgetcurrencycode",
+      "data_type": "string"
+    },
+    {
+      "column_name": "campaignbudgettype",
+      "data_type": "string"
+    },
+    {
+      "column_name": "campaignid",
+      "data_type": "double"
+    },
+    {
+      "column_name": "campaignname",
+      "data_type": "string"
+    },
+    {
+      "column_name": "campaignrulebasedbudgetamount",
+      "data_type": "string"
+    },
+    {
+      "column_name": "campaignstatus",
+      "data_type": "string"
+    },
+    {
+      "column_name": "clickthroughrate",
+      "data_type": "double"
+    },
+    {
+      "column_name": "clicks",
+      "data_type": "double"
+    },
+    {
+      "column_name": "cost",
+      "data_type": "double"
+    },
+    {
+      "column_name": "costperclick",
+      "data_type": "double"
+    },
+    {
+      "column_name": "date",
+      "data_type": "date"
+    },
+    {
+      "column_name": "impressions",
+      "data_type": "double"
+    },
+    {
+      "column_name": "purchases14d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "purchases1d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "purchases30d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "purchases7d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "purchasessamesku14d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "purchasessamesku1d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "purchasessamesku30d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "purchasessamesku7d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "sales14d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "sales1d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "sales30d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "sales7d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "spend",
+      "data_type": "double"
+    },
+    {
+      "column_name": "unitssoldclicks14d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "unitssoldclicks1d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "unitssoldclicks30d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "unitssoldclicks7d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "unitssoldsamesku14d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "unitssoldsamesku1d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "unitssoldsamesku30d",
+      "data_type": "double"
+    },
+    {
+      "column_name": "unitssoldsamesku7d",
+      "data_type": "double"
+    }
+  ]
+}
