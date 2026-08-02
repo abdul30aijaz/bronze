@@ -42,7 +42,7 @@
   "schema": [
     {
       "column_name": "gtin",
-      "data_type": "bigint"
+      "data_type": "string"
     },
     {
       "column_name": "date",
