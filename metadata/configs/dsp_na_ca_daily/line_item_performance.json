@@ -16,7 +16,7 @@
       "source_path": "/Volumes/workspace/default/staging/NORTH AMERICA/CA/DEMAND/DSP",
       "file_format": "csv",
       "csv_options": {
-        "delimiter": ";"
+        "delimiter": ","
       },
       "pii_columns": []
     },
