@@ -1,0 +1,412 @@
+{
+  "region": "NORTH AMERICA",
+  "market": "CA",
+  "domain": "DEMAND",
+  "source_name": "DSP",
+  "notify": {
+    "emails": [
+      "aijazabdul233035@gmail.com"
+    ]
+  },
+  "trigger": {
+    "type": ""
+  },
+  "ingestion_steps": {
+    "landing": {
+      "source_path": "/Volumes/workspace/default/staging/NORTH AMERICA/CA/DEMAND/DSP",
+      "file_format": "csv",
+      "csv_options": {
+        "delimiter": ";"
+      },
+      "pii_columns": []
+    },
+    "raw": {
+      "schema_config": "enforce",
+      "deduplication": true
+    },
+    "raw_trusted": {
+      "load_type": "append",
+      "primary_key": [],
+      "enable_expiration": false,
+      "validations": [
+        "row_count_validation",
+        "schema_validation"
+      ],
+      "schema_evolution": true
+    }
+  },
+  "schema": [
+    {
+      "column_name": "report_date",
+      "data_type": "date"
+    },
+    {
+      "column_name": "advertiser_id",
+      "data_type": "double"
+    },
+    {
+      "column_name": "advertiser_name",
+      "data_type": "string"
+    },
+    {
+      "column_name": "order_id",
+      "data_type": "double"
+    },
+    {
+      "column_name": "order_name",
+      "data_type": "string"
+    },
+    {
+      "column_name": "campaign_id",
+      "data_type": "string"
+    },
+    {
+      "column_name": "campaign_name",
+      "data_type": "string"
+    },
+    {
+      "column_name": "line_item_id",
+      "data_type": "double"
+    },
+    {
+      "column_name": "line_item_name",
+      "data_type": "string"
+    },
+    {
+      "column_name": "line_item_status",
+      "data_type": "string"
+    },
+    {
+      "column_name": "creative_id",
+      "data_type": "double"
+    },
+    {
+      "column_name": "creative_name",
+      "data_type": "string"
+    },
+    {
+      "column_name": "creative_type",
+      "data_type": "string"
+    },
+    {
+      "column_name": "creative_size",
+      "data_type": "string"
+    },
+    {
+      "column_name": "targeting_type",
+      "data_type": "string"
+    },
+    {
+      "column_name": "optimization_goal",
+      "data_type": "string"
+    },
+    {
+      "column_name": "bid_strategy",
+      "data_type": "string"
+    },
+    {
+      "column_name": "audience_segment",
+      "data_type": "string"
+    },
+    {
+      "column_name": "supply_type",
+      "data_type": "string"
+    },
+    {
+      "column_name": "exchange_name",
+      "data_type": "string"
+    },
+    {
+      "column_name": "deal_id",
+      "data_type": "string"
+    },
+    {
+      "column_name": "deal_name",
+      "data_type": "string"
+    },
+    {
+      "column_name": "deal_type",
+      "data_type": "string"
+    },
+    {
+      "column_name": "device_type",
+      "data_type": "string"
+    },
+    {
+      "column_name": "operating_system",
+      "data_type": "string"
+    },
+    {
+      "column_name": "browser",
+      "data_type": "string"
+    },
+    {
+      "column_name": "app_bundle_id",
+      "data_type": "string"
+    },
+    {
+      "column_name": "site_domain",
+      "data_type": "string"
+    },
+    {
+      "column_name": "country",
+      "data_type": "string"
+    },
+    {
+      "column_name": "region",
+      "data_type": "string"
+    },
+    {
+      "column_name": "dma",
+      "data_type": "string"
+    },
+    {
+      "column_name": "currency_code",
+      "data_type": "string"
+    },
+    {
+      "column_name": "flight_start_date",
+      "data_type": "date"
+    },
+    {
+      "column_name": "flight_end_date",
+      "data_type": "date"
+    },
+    {
+      "column_name": "budget_cap",
+      "data_type": "double"
+    },
+    {
+      "column_name": "spend_pacing_pct",
+      "data_type": "double"
+    },
+    {
+      "column_name": "page_type",
+      "data_type": "string"
+    },
+    {
+      "column_name": "pixel_id",
+      "data_type": "string"
+    },
+    {
+      "column_name": "pixel_name",
+      "data_type": "string"
+    },
+    {
+      "column_name": "bid_requests",
+      "data_type": "double"
+    },
+    {
+      "column_name": "bid_responses",
+      "data_type": "double"
+    },
+    {
+      "column_name": "impressions_won",
+      "data_type": "double"
+    },
+    {
+      "column_name": "win_rate",
+      "data_type": "double"
+    },
+    {
+      "column_name": "floor_price",
+      "data_type": "double"
+    },
+    {
+      "column_name": "impressions",
+      "data_type": "double"
+    },
+    {
+      "column_name": "measurable_impressions",
+      "data_type": "double"
+    },
+    {
+      "column_name": "viewable_impressions",
+      "data_type": "double"
+    },
+    {
+      "column_name": "viewability_rate",
+      "data_type": "double"
+    },
+    {
+      "column_name": "clicks",
+      "data_type": "double"
+    },
+    {
+      "column_name": "ctr",
+      "data_type": "double"
+    },
+    {
+      "column_name": "ecpm",
+      "data_type": "double"
+    },
+    {
+      "column_name": "ecpc",
+      "data_type": "double"
+    },
+    {
+      "column_name": "media_cost",
+      "data_type": "double"
+    },
+    {
+      "column_name": "platform_fee",
+      "data_type": "double"
+    },
+    {
+      "column_name": "data_cost",
+      "data_type": "double"
+    },
+    {
+      "column_name": "total_cost",
+      "data_type": "double"
+    },
+    {
+      "column_name": "video_starts",
+      "data_type": "double"
+    },
+    {
+      "column_name": "video_first_quartile",
+      "data_type": "double"
+    },
+    {
+      "column_name": "video_midpoint",
+      "data_type": "double"
+    },
+    {
+      "column_name": "video_third_quartile",
+      "data_type": "double"
+    },
+    {
+      "column_name": "video_complete",
+      "data_type": "double"
+    },
+    {
+      "column_name": "video_completion_rate",
+      "data_type": "double"
+    },
+    {
+      "column_name": "video_skips",
+      "data_type": "double"
+    },
+    {
+      "column_name": "video_mute",
+      "data_type": "double"
+    },
+    {
+      "column_name": "video_unmute",
+      "data_type": "double"
+    },
+    {
+      "column_name": "video_pause",
+      "data_type": "double"
+    },
+    {
+      "column_name": "video_resume",
+      "data_type": "double"
+    },
+    {
+      "column_name": "audio_impressions",
+      "data_type": "double"
+    },
+    {
+      "column_name": "reach",
+      "data_type": "double"
+    },
+    {
+      "column_name": "unique_reach",
+      "data_type": "double"
+    },
+    {
+      "column_name": "frequency",
+      "data_type": "double"
+    },
+    {
+      "column_name": "click_through_conversions",
+      "data_type": "double"
+    },
+    {
+      "column_name": "view_through_conversions",
+      "data_type": "double"
+    },
+    {
+      "column_name": "total_conversions",
+      "data_type": "double"
+    },
+    {
+      "column_name": "conversion_rate",
+      "data_type": "double"
+    },
+    {
+      "column_name": "detail_page_views",
+      "data_type": "double"
+    },
+    {
+      "column_name": "add_to_cart_clicks",
+      "data_type": "double"
+    },
+    {
+      "column_name": "add_to_cart_rate",
+      "data_type": "double"
+    },
+    {
+      "column_name": "subscribe_and_save_subscriptions",
+      "data_type": "double"
+    },
+    {
+      "column_name": "total_product_sales",
+      "data_type": "double"
+    },
+    {
+      "column_name": "total_units_sold",
+      "data_type": "double"
+    },
+    {
+      "column_name": "new_to_brand_purchases",
+      "data_type": "double"
+    },
+    {
+      "column_name": "new_to_brand_units",
+      "data_type": "double"
+    },
+    {
+      "column_name": "new_to_brand_sales",
+      "data_type": "double"
+    },
+    {
+      "column_name": "same_sku_purchases",
+      "data_type": "double"
+    },
+    {
+      "column_name": "same_sku_sales",
+      "data_type": "double"
+    },
+    {
+      "column_name": "other_sku_purchases",
+      "data_type": "double"
+    },
+    {
+      "column_name": "other_sku_sales",
+      "data_type": "double"
+    },
+    {
+      "column_name": "brand_halo_purchases",
+      "data_type": "double"
+    },
+    {
+      "column_name": "brand_halo_sales",
+      "data_type": "double"
+    },
+    {
+      "column_name": "brand_search_rate",
+      "data_type": "double"
+    },
+    {
+      "column_name": "roas",
+      "data_type": "double"
+    },
+    {
+      "column_name": "cpa",
+      "data_type": "double"
+    }
+  ]
+}
