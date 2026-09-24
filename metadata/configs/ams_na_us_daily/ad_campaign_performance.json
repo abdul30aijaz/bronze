@@ -5,7 +5,7 @@
   "source_name": "AMS",
   "notify": {
     "emails": [
-      "aijazabdul233035@gmail.com"
+      "REPLACE_ME@company.com"
     ]
   },
   "trigger": {
@@ -15,14 +15,14 @@
     "landing": {
       "source_path": "/Volumes/workspace/default/staging/NORTH AMERICA/US/DEMAND/AMS",
       "file_format": "excel",
+      "pii_columns": [],
       "excel_options": {
         "sheet_index": 0,
         "header_row": 1,
         "data_start_row": 2,
         "data_end_row": 1048576,
         "usecols": "A:AR"
-      },
-      "pii_columns": []
+      }
     },
     "raw": {
       "schema_config": "enforce",
@@ -41,75 +41,75 @@
   },
   "schema": [
     {
-      "column_name": "adgroupid",
+      "column_name": "ad_group_id",
       "data_type": "double"
     },
     {
-      "column_name": "adgroupname",
+      "column_name": "ad_group_name",
       "data_type": "string"
     },
     {
-      "column_name": "adstatus",
+      "column_name": "ad_status",
       "data_type": "string"
     },
     {
-      "column_name": "attributedsalessamesku14d",
+      "column_name": "attributed_sales_same_sku_14d",
       "data_type": "double"
     },
     {
-      "column_name": "attributedsalessamesku1d",
+      "column_name": "attributed_sales_same_sku_1d",
       "data_type": "double"
     },
     {
-      "column_name": "attributedsalessamesku30d",
+      "column_name": "attributed_sales_same_sku_30d",
       "data_type": "double"
     },
     {
-      "column_name": "attributedsalessamesku7d",
+      "column_name": "attributed_sales_same_sku_7d",
       "data_type": "double"
     },
     {
-      "column_name": "campaignapplicablebudgetruleid",
+      "column_name": "campaign_applicable_budget_rule_id",
       "data_type": "string"
     },
     {
-      "column_name": "campaignapplicablebudgetrulename",
+      "column_name": "campaign_applicable_budget_rule_name",
       "data_type": "string"
     },
     {
-      "column_name": "campaignbiddingstrategy",
+      "column_name": "campaign_bidding_strategy",
       "data_type": "string"
     },
     {
-      "column_name": "campaignbudgetamount",
+      "column_name": "campaign_budget_amount",
       "data_type": "double"
     },
     {
-      "column_name": "campaignbudgetcurrencycode",
+      "column_name": "campaign_budget_currency_code",
       "data_type": "string"
     },
     {
-      "column_name": "campaignbudgettype",
+      "column_name": "campaign_budget_type",
       "data_type": "string"
     },
     {
-      "column_name": "campaignid",
+      "column_name": "campaign_id",
       "data_type": "double"
     },
     {
-      "column_name": "campaignname",
+      "column_name": "campaign_name",
       "data_type": "string"
     },
     {
-      "column_name": "campaignrulebasedbudgetamount",
+      "column_name": "campaign_rule_based_budget_amount",
+      "data_type": "double"
+    },
+    {
+      "column_name": "campaign_status",
       "data_type": "string"
     },
     {
-      "column_name": "campaignstatus",
-      "data_type": "string"
-    },
-    {
-      "column_name": "clickthroughrate",
+      "column_name": "click_through_rate",
       "data_type": "double"
     },
     {
@@ -121,7 +121,7 @@
       "data_type": "double"
     },
     {
-      "column_name": "costperclick",
+      "column_name": "cost_per_click",
       "data_type": "double"
     },
     {
@@ -133,51 +133,51 @@
       "data_type": "double"
     },
     {
-      "column_name": "purchases14d",
+      "column_name": "purchases_14d",
       "data_type": "double"
     },
     {
-      "column_name": "purchases1d",
+      "column_name": "purchases_1d",
       "data_type": "double"
     },
     {
-      "column_name": "purchases30d",
+      "column_name": "purchases_30d",
       "data_type": "double"
     },
     {
-      "column_name": "purchases7d",
+      "column_name": "purchases_7d",
       "data_type": "double"
     },
     {
-      "column_name": "purchasessamesku14d",
+      "column_name": "purchases_same_sku_14d",
       "data_type": "double"
     },
     {
-      "column_name": "purchasessamesku1d",
+      "column_name": "purchases_same_sku_1d",
       "data_type": "double"
     },
     {
-      "column_name": "purchasessamesku30d",
+      "column_name": "purchases_same_sku_30d",
       "data_type": "double"
     },
     {
-      "column_name": "purchasessamesku7d",
+      "column_name": "purchases_same_sku_7d",
       "data_type": "double"
     },
     {
-      "column_name": "sales14d",
+      "column_name": "sales_14d",
       "data_type": "double"
     },
     {
-      "column_name": "sales1d",
+      "column_name": "sales_1d",
       "data_type": "double"
     },
     {
-      "column_name": "sales30d",
+      "column_name": "sales_30d",
       "data_type": "double"
     },
     {
-      "column_name": "sales7d",
+      "column_name": "sales_7d",
       "data_type": "double"
     },
     {
@@ -185,35 +185,35 @@
       "data_type": "double"
     },
     {
-      "column_name": "unitssoldclicks14d",
+      "column_name": "units_sold_clicks_14d",
       "data_type": "double"
     },
     {
-      "column_name": "unitssoldclicks1d",
+      "column_name": "units_sold_clicks_1d",
       "data_type": "double"
     },
     {
-      "column_name": "unitssoldclicks30d",
+      "column_name": "units_sold_clicks_30d",
       "data_type": "double"
     },
     {
-      "column_name": "unitssoldclicks7d",
+      "column_name": "units_sold_clicks_7d",
       "data_type": "double"
     },
     {
-      "column_name": "unitssoldsamesku14d",
+      "column_name": "units_sold_same_sku_14d",
       "data_type": "double"
     },
     {
-      "column_name": "unitssoldsamesku1d",
+      "column_name": "units_sold_same_sku_1d",
       "data_type": "double"
     },
     {
-      "column_name": "unitssoldsamesku30d",
+      "column_name": "units_sold_same_sku_30d",
       "data_type": "double"
     },
     {
-      "column_name": "unitssoldsamesku7d",
+      "column_name": "units_sold_same_sku_7d",
       "data_type": "double"
     }
   ]
