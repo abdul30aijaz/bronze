@@ -1,0 +1,183 @@
+name: BRD to Metadata
+
+# Two ways to run this:
+#   1. Automatic: push a new/updated *.xlsx BRD into the `brd/` folder on `dev`.
+#   2. Manual: Actions tab -> "BRD to Metadata" -> Run workflow, optionally
+#      pointing at one specific file already committed under `brd/`.
+#
+# Either way it: parses the BRD's TECH DOC + STTM sheets, generates
+# metadata/configs/<job_name>/<table_name>.json, runs it through the same
+# validation rules as CICD/validate_metadata.py, and opens a PR for human
+# review. Nothing is committed straight to `dev`.
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "brd/**.xlsx"
+  workflow_dispatch:
+    inputs:
+      brd_path:
+        description: "Path to a single BRD file under brd/ (leave blank to process every *.xlsx changed in the last push)"
+        required: false
+        type: string
+      notify_emails:
+        description: "Comma-separated notify.emails for the generated config(s) (overrides the NOTIFY_EMAILS repo variable)"
+        required: false
+        type: string
+      file_format:
+        description: "Landing file_format to assume (BRDs don't state this explicitly)"
+        required: false
+        default: "excel"
+        type: choice
+        options: [excel, csv, parquet, json, delta]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  generate-metadata:
+    runs-on: ubuntu-latest
+    name: Generate metadata from BRD and open PR
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install --quiet openpyxl
+
+      # --------------------------------------------------------------- #
+      # Work out which BRD file(s) to process
+      # --------------------------------------------------------------- #
+      - name: Determine BRD files
+        id: files
+        env:
+          BRD_PATH_INPUT: ${{ inputs.brd_path }}
+        run: |
+          set -e
+          if [ -n "$BRD_PATH_INPUT" ]; then
+            echo "Using manually specified file: $BRD_PATH_INPUT"
+            FILES="$BRD_PATH_INPUT"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            echo "Diffing ${{ github.event.before }}..${{ github.sha }} for changed BRDs"
+            FILES=$(git diff --name-only --diff-filter=ACMR "${{ github.event.before }}" "${{ github.sha }}" -- 'brd/**.xlsx' || true)
+          else
+            echo "No brd_path given on manual run — processing every *.xlsx under brd/"
+            FILES=$(find brd -type f -name '*.xlsx' 2>/dev/null || true)
+          fi
+
+          if [ -z "$FILES" ]; then
+            echo "No BRD files to process — exiting."
+            echo "has_files=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "has_files=true" >> "$GITHUB_OUTPUT"
+          echo "files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$FILES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "Files to process:"
+          echo "$FILES"
+
+      # --------------------------------------------------------------- #
+      # Generate metadata/configs/<job>/<table>.json for each BRD
+      # --------------------------------------------------------------- #
+      - name: Generate metadata JSON from BRD(s)
+        if: steps.files.outputs.has_files == 'true'
+        env:
+          NOTIFY_EMAILS: ${{ inputs.notify_emails || vars.NOTIFY_EMAILS }}
+          FILE_FORMAT: ${{ inputs.file_format || 'excel' }}
+        run: |
+          set -e
+          python CICD/generate_metadata_from_brd.py \
+            ${{ steps.files.outputs.files }} \
+            --repo-root . \
+            --notify-emails "$NOTIFY_EMAILS" \
+            --file-format "$FILE_FORMAT" \
+            --summary-out /tmp/brd_summary.json
+
+      # --------------------------------------------------------------- #
+      # Validate every generated file before it's allowed anywhere near a PR
+      # --------------------------------------------------------------- #
+      - name: Validate generated metadata
+        if: steps.files.outputs.has_files == 'true'
+        run: |
+          set -e
+          CHANGED_JSON=$(git status --porcelain 'metadata/configs/**/*.json' | awk '{print $2}')
+          if [ -z "$CHANGED_JSON" ]; then
+            echo "No metadata JSON changes were produced — nothing to validate."
+            exit 0
+          fi
+          python CICD/local_validate_metadata.py $CHANGED_JSON
+
+      # --------------------------------------------------------------- #
+      # Build the PR body from the generator's summary (fields extracted,
+      # assumptions made, things flagged for human review)
+      # --------------------------------------------------------------- #
+      - name: Build PR body
+        if: steps.files.outputs.has_files == 'true'
+        id: pr_body
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary = json.loads(Path("/tmp/brd_summary.json").read_text())
+          lines = [
+              "Auto-generated from BRD(s) by the `BRD to Metadata` workflow.",
+              "Please review carefully before merging — nothing here has touched `dev` yet.",
+              "",
+          ]
+          for r in summary:
+              lines.append(f"### `{r['output_path']}`")
+              lines.append(f"- Source BRD: `{r['brd_file']}`")
+              lines.append(
+                  f"- {r['source_name']} / {r['region']} / {r['market']} / "
+                  f"{r['domain']} / {r['cadence']} / {r['load_type']}"
+              )
+              lines.append(f"- Columns: {r['column_count']}")
+              lines.append(f"- Primary key: {r['primary_key'] or '(none)'}")
+              if r["pii_candidates"]:
+                  lines.append(
+                      f"- ⚠️ Auto-detected possible PII columns (please confirm): "
+                      f"{', '.join(r['pii_candidates'])}"
+                  )
+              if r["warnings"]:
+                  lines.append("- ⚠️ Needs review:")
+                  for w in r["warnings"]:
+                      lines.append(f"  - {w}")
+              lines.append("")
+
+          lines.append("---")
+          lines.append(
+              "Generated by `CICD/generate_metadata_from_brd.py` and checked with "
+              "`CICD/local_validate_metadata.py` (mirrors `CICD/validate_metadata.py`'s rules)."
+          )
+          body = "\n".join(lines)
+          Path("/tmp/pr_body.md").write_text(body)
+          print(body)
+          PY
+
+      # --------------------------------------------------------------- #
+      # Open the PR (skips cleanly if nothing changed)
+      # --------------------------------------------------------------- #
+      - name: Open pull request
+        if: steps.files.outputs.has_files == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "metadata: auto-generate from BRD(s)"
+          branch: metadata/brd-auto-${{ github.run_number }}
+          base: dev
+          title: "Auto-generated metadata from BRD (run #${{ github.run_number }})"
+          body-path: /tmp/pr_body.md
+          add-paths: metadata/configs/**/*.json
+          labels: metadata,auto-generated
