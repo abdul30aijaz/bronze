@@ -9,6 +9,12 @@ name: BRD to Metadata
 # metadata/configs/<job_name>/<table_name>.json, runs it through the same
 # validation rules as CICD/validate_metadata.py, and opens a PR for human
 # review. Nothing is committed straight to `dev`.
+#
+# NOTE: BRD/output file paths are always passed through files (env vars /
+# newline-delimited lists read with `mapfile`), never interpolated with
+# ${{ }} directly into a shell command — filenames with spaces or
+# parentheses (e.g. "AMS_BRD (1).xlsx") will break an unquoted inline
+# substitution.
 
 on:
   push:
@@ -55,40 +61,53 @@ jobs:
         run: pip install --quiet openpyxl
 
       # --------------------------------------------------------------- #
-      # Work out which BRD file(s) to process
+      # Work out which BRD file(s) to process. Written to a plain text
+      # file (one path per line) rather than a ${{ }}-interpolated
+      # variable, so paths with spaces/parentheses survive intact.
       # --------------------------------------------------------------- #
       - name: Determine BRD files
         id: files
         env:
           BRD_PATH_INPUT: ${{ inputs.brd_path }}
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
         run: |
           set -e
+          : > /tmp/brd_files.txt
+
           if [ -n "$BRD_PATH_INPUT" ]; then
             echo "Using manually specified file: $BRD_PATH_INPUT"
-            FILES="$BRD_PATH_INPUT"
-          elif [ "${{ github.event_name }}" = "push" ]; then
-            echo "Diffing ${{ github.event.before }}..${{ github.sha }} for changed BRDs"
-            FILES=$(git diff --name-only --diff-filter=ACMR "${{ github.event.before }}" "${{ github.sha }}" -- 'brd/**.xlsx' || true)
+            printf '%s\n' "$BRD_PATH_INPUT" >> /tmp/brd_files.txt
+          elif [ "$EVENT_NAME" = "push" ]; then
+            echo "Diffing $BEFORE_SHA..$AFTER_SHA for changed BRDs"
+            # Skip cleanly on a first push to an empty branch (all-zero SHA)
+            if [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+              git diff --name-only --diff-filter=ACMR -z "$BEFORE_SHA" "$AFTER_SHA" -- 'brd/**.xlsx' \
+                | tr '\0' '\n' >> /tmp/brd_files.txt
+            fi
           else
             echo "No brd_path given on manual run — processing every *.xlsx under brd/"
-            FILES=$(find brd -type f -name '*.xlsx' 2>/dev/null || true)
+            find brd -type f -name '*.xlsx' >> /tmp/brd_files.txt 2>/dev/null || true
           fi
 
-          if [ -z "$FILES" ]; then
+          sed -i '/^$/d' /tmp/brd_files.txt
+
+          if [ ! -s /tmp/brd_files.txt ]; then
             echo "No BRD files to process — exiting."
             echo "has_files=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           echo "has_files=true" >> "$GITHUB_OUTPUT"
-          echo "files<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$FILES" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
           echo "Files to process:"
-          echo "$FILES"
+          cat /tmp/brd_files.txt
 
       # --------------------------------------------------------------- #
-      # Generate metadata/configs/<job>/<table>.json for each BRD
+      # Generate metadata/configs/<job>/<table>.json for each BRD.
+      # File list is read from /tmp/brd_files.txt into a bash array so
+      # each path is passed to python as its own argv entry, correctly
+      # quoted regardless of spaces/parentheses.
       # --------------------------------------------------------------- #
       - name: Generate metadata JSON from BRD(s)
         if: steps.files.outputs.has_files == 'true'
@@ -97,26 +116,39 @@ jobs:
           FILE_FORMAT: ${{ inputs.file_format || 'excel' }}
         run: |
           set -e
+          mapfile -t BRD_FILES < /tmp/brd_files.txt
           python CICD/generate_metadata_from_brd.py \
-            ${{ steps.files.outputs.files }} \
+            "${BRD_FILES[@]}" \
             --repo-root . \
             --notify-emails "$NOTIFY_EMAILS" \
             --file-format "$FILE_FORMAT" \
             --summary-out /tmp/brd_summary.json
 
       # --------------------------------------------------------------- #
-      # Validate every generated file before it's allowed anywhere near a PR
+      # Validate every generated file before it's allowed anywhere near a
+      # PR. Reads output_path straight from the generator's own summary
+      # JSON instead of re-deriving filenames with `git status`/`awk`
+      # (which also breaks on filenames with spaces).
       # --------------------------------------------------------------- #
       - name: Validate generated metadata
         if: steps.files.outputs.has_files == 'true'
         run: |
           set -e
-          CHANGED_JSON=$(git status --porcelain 'metadata/configs/**/*.json' | awk '{print $2}')
-          if [ -z "$CHANGED_JSON" ]; then
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          summary = json.loads(Path("/tmp/brd_summary.json").read_text())
+          paths = [r["output_path"] for r in summary]
+          Path("/tmp/generated_json_files.txt").write_text("\n".join(paths))
+          PY
+
+          if [ ! -s /tmp/generated_json_files.txt ]; then
             echo "No metadata JSON changes were produced — nothing to validate."
             exit 0
           fi
-          python CICD/local_validate_metadata.py $CHANGED_JSON
+
+          mapfile -t JSON_FILES < /tmp/generated_json_files.txt
+          python CICD/local_validate_metadata.py "${JSON_FILES[@]}"
 
       # --------------------------------------------------------------- #
       # Build the PR body from the generator's summary (fields extracted,
@@ -124,8 +156,8 @@ jobs:
       # --------------------------------------------------------------- #
       - name: Build PR body
         if: steps.files.outputs.has_files == 'true'
-        id: pr_body
         run: |
+          set -e
           python - <<'PY'
           import json
           from pathlib import Path
@@ -147,11 +179,11 @@ jobs:
               lines.append(f"- Primary key: {r['primary_key'] or '(none)'}")
               if r["pii_candidates"]:
                   lines.append(
-                      f"- ⚠️ Auto-detected possible PII columns (please confirm): "
-                      f"{', '.join(r['pii_candidates'])}"
+                      "- \u26a0\ufe0f Auto-detected possible PII columns (please confirm): "
+                      + ", ".join(r["pii_candidates"])
                   )
               if r["warnings"]:
-                  lines.append("- ⚠️ Needs review:")
+                  lines.append("- \u26a0\ufe0f Needs review:")
                   for w in r["warnings"]:
                       lines.append(f"  - {w}")
               lines.append("")
